@@ -1,0 +1,2074 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Daniel Joseph Ryan — CBES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{
+  --party-D:#4f9af5; --party-R:#ef4444; --party-I:#c084fc; --party-:#94a3b8;
+  --gender-Female:#f472b6; --gender-Male:#7dd3fc; --gender-Other:#a78bfa;
+  --age-1:#f59e0b; --age-2:#22d3ee; --age-3:#34d399; --age-4:#6366f1; --age-5:#94a3b8;
+  --eth-1:#a78bfa; --eth-2:#ef4444; --eth-3:#06b6d4; --eth-4:#10b981; --eth-5:#f59e0b; --eth-6:#fb923c; --eth-7:#94a3b8;
+  --r-1:#ef4444; --r-2:#f97316; --r-3:#fbbf24; --r-4:#a78bfa; --r-5:#60a5fa; --r-6:#34d399; --r-7:#f472b6; --r-8:#fb923c;
+  --inc-Low:#fb923c; --inc-Higher:#34d399; --mh-MassHealth:#a78bfa; --mh-No:#94a3b8;
+  --transition:0.45s cubic-bezier(0.22,1,0.36,1);
+  --accent:#7dd3fc;
+  /* CBES brand */
+  --cbes-blue:#0ea5e9;
+  --cbes-blue-deep:#0369a1;
+  --cbes-cyan:#22d3ee;
+  --glass-blur:blur(20px) saturate(1.4);
+}
+[data-theme="dark"]{
+  --bg:#070b15; --bg2:#0a1020; --card:#101a30; --card-2:#162243;
+  --card-glass:color-mix(in oklab, #101a30, transparent 35%);
+  --card-glass-2:color-mix(in oklab, #162243, transparent 30%);
+  --border:rgba(148,163,184,0.10); --border-strong:rgba(148,163,184,0.25);
+  --border-glass:rgba(148,163,184,0.18);
+  --text:#e2e8f0; --text-strong:#f8fafc; --muted:#94a3b8; --muted-2:#64748b;
+  --shadow:0 30px 60px -30px rgba(0,0,0,0.85), 0 10px 30px -15px rgba(0,0,0,0.6);
+  --hero-glow:radial-gradient(60% 80% at 30% 20%, rgba(125,211,252,0.18), transparent 60%),
+              radial-gradient(50% 70% at 80% 30%, rgba(167,139,250,0.20), transparent 60%),
+              radial-gradient(50% 70% at 50% 90%, rgba(244,114,182,0.12), transparent 60%);
+  --grid-color:rgba(148,163,184,0.07);
+  --map-tiles:https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png;
+  --district-fill:rgba(125,211,252,0.18);
+  --district-stroke:#7dd3fc;
+  --accent:#7dd3fc;
+}
+[data-theme="light"]{
+  /* CBES blue palette: warm white with sky-blue undertone */
+  --bg:#eaf4fb;
+  --bg2:#f7fbfe;
+  --card:rgba(255,255,255,0.55);
+  --card-2:rgba(241,249,254,0.6);
+  --card-glass:rgba(255,255,255,0.45);
+  --card-glass-2:rgba(241,249,254,0.50);
+  --border:rgba(14,165,233,0.16);
+  --border-strong:rgba(14,165,233,0.30);
+  --border-glass:rgba(14,165,233,0.24);
+  --text:#0c2742; --text-strong:#012137; --muted:#456279; --muted-2:#6e8aa1;
+  --shadow:0 30px 60px -30px rgba(3,105,161,0.25), 0 10px 30px -15px rgba(3,105,161,0.18);
+  --hero-glow:radial-gradient(60% 80% at 30% 20%, rgba(14,165,233,0.30), transparent 60%),
+              radial-gradient(50% 70% at 80% 30%, rgba(34,211,238,0.30), transparent 60%),
+              radial-gradient(50% 70% at 50% 90%, rgba(125,211,252,0.20), transparent 60%);
+  --grid-color:rgba(14,165,233,0.07);
+  --map-tiles:https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png;
+  --district-fill:rgba(14,165,233,0.22);
+  --district-stroke:#0284c7;
+  --accent:#0284c7;
+}
+[data-theme="light"] body{
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(34,211,238,0.18), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(14,165,233,0.18), transparent 60%),
+    var(--bg);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'DM Sans',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  font-feature-settings:"ss01","cv11";
+  transition:background var(--transition), color var(--transition);
+  overflow-x:hidden;
+  line-height:1.5;
+}
+a{color:inherit;text-decoration:none}
+
+/* page-wide cinematic Boston backdrop */
+.page-bg{
+  position:fixed; inset:0; z-index:-10;
+  pointer-events:none; overflow:hidden;
+}
+.page-bg-img{
+  position:absolute; inset:-6%;
+  background:url("https://raw.githubusercontent.com/eponceCBES/dashboard_animations/3be4ba88d8857bb5b6e3719b9342b23f0caad697/boston.png") center/cover no-repeat;
+  opacity:0.22;
+  filter:blur(2px) saturate(0.95);
+  transition:transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity var(--transition);
+  will-change:transform;
+  --px:0; --py:0;
+  transform:translate3d(calc(var(--px)*-22px), calc(var(--py)*-22px), 0) scale(1.06);
+  animation:bgZoom 50s ease-in-out infinite alternate;
+}
+[data-theme="light"] .page-bg-img{opacity:0.16; filter:blur(2px) saturate(0.7) brightness(1.15)}
+@keyframes bgZoom{
+  0%{transform:translate3d(calc(var(--px)*-22px), calc(var(--py)*-22px), 0) scale(1.06)}
+  100%{transform:translate3d(calc(var(--px)*-22px), calc(var(--py)*-22px), 0) scale(1.14)}
+}
+.page-bg-tint{
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, color-mix(in oklab, var(--accent), transparent 75%), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, color-mix(in oklab, var(--accent), transparent 75%), transparent 55%);
+  mix-blend-mode:soft-light;
+}
+[data-theme="light"] .page-bg-tint{mix-blend-mode:multiply; opacity:0.65}
+
+/* topbar */
+.topbar{
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 32px;
+  min-height:72px;
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  background:color-mix(in oklab, var(--bg), transparent 55%);
+  border-bottom:1px solid var(--border);
+  transition:background var(--transition), border-color var(--transition);
+}
+.brand{display:inline-flex; align-items:center; height:48px}
+.brand img{height:48px; width:auto; display:block}
+.topbar-right{display:flex; align-items:center; gap:16px}
+.topbar a.back{font-size:13px; color:var(--muted); font-weight:500}
+.topbar a.back:hover{color:var(--text-strong)}
+.theme-btn{
+  width:38px; height:38px; border-radius:999px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--text); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--transition);
+}
+.theme-btn:hover{transform:translateY(-1px); border-color:var(--accent); color:var(--accent)}
+.theme-btn svg{width:18px;height:18px}
+[data-theme="dark"] .theme-btn .sun{display:block} [data-theme="dark"] .theme-btn .moon{display:none}
+[data-theme="light"] .theme-btn .sun{display:none}  [data-theme="light"] .theme-btn .moon{display:block}
+
+/* profile layout: legislator on left (fixed), data carousel on right (scrolls) */
+.profile-layout{
+  display:block;
+  padding-top:72px;
+}
+.profile-side{
+  position:fixed;
+  top:72px; left:0;
+  width:38%; min-width:360px;
+  height:calc(100vh - 72px);
+  padding:48px 4vw;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  isolation:isolate;
+  overflow:hidden;
+  background:transparent;
+}
+.boston-bg{display:none}
+.profile-side::before{display:none}
+.profile-side::after{display:none}
+@keyframes drift{
+  0%{transform:translate3d(0,0,0) rotate(0deg)}
+  50%{transform:translate3d(2%,1%,0) rotate(0.5deg)}
+  100%{transform:translate3d(-1%,2%,0) rotate(-0.4deg)}
+}
+.side-content{
+  display:flex; flex-direction:column;
+  gap:28px;
+  width:100%;
+  max-width:520px;
+  margin:0 auto;
+}
+.profile-main{
+  position:relative;
+  margin-left:max(38%, 360px);
+  min-height:calc(100vh - 72px);
+}
+
+.hero-meta{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.party-pill{
+  font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase;
+  padding:6px 12px; border-radius:999px;
+  border:1px solid var(--party-D); color:var(--party-D);
+  background:color-mix(in oklab, var(--party-D), transparent 88%);
+}
+.party-pill[data-p="R"]{border-color:var(--party-R); color:var(--party-R); background:color-mix(in oklab, var(--party-R), transparent 88%)}
+.party-pill[data-p="I"]{border-color:var(--party-I); color:var(--party-I); background:color-mix(in oklab, var(--party-I), transparent 88%)}
+.tier-tag{font-size:11px; letter-spacing:.20em; font-weight:700; color:var(--muted); text-transform:uppercase}
+.side-info h1{
+  font-size:clamp(44px, 5.4vw, 84px);
+  font-weight:900;
+  line-height:0.95;
+  letter-spacing:-0.04em;
+  color:var(--text-strong);
+  margin:14px 0 18px;
+}
+.side-info h1 .word{display:inline-block; opacity:0; transform:translateY(28px); animation:rise 0.85s cubic-bezier(0.22,1,0.36,1) forwards}
+.side-info h1 .word:nth-child(2){animation-delay:.08s}
+.side-info h1 .word:nth-child(3){animation-delay:.16s}
+.side-info h1 .word:nth-child(4){animation-delay:.24s}
+@keyframes rise{to{opacity:1; transform:none}}
+.side-info .district{
+  font-size:22px; font-weight:500; color:var(--muted); margin-bottom:30px;
+  display:flex; align-items:center; gap:12px;
+}
+.side-info .district::before{content:""; width:28px; height:1px; background:var(--accent)}
+.side-info .official{
+  display:inline-flex; align-items:center; gap:10px;
+  padding:12px 20px; border-radius:999px;
+  border:1px solid var(--border-glass);
+  color:var(--text-strong);
+  font-weight:700; font-size:13px; transition:all var(--transition);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  align-self:flex-start;
+}
+.side-info .official:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-1px)}
+.hero-photo{
+  position:relative; aspect-ratio:1/1; width:100%; max-width:340px;
+  opacity:0; animation:photoIn 1.1s 0.2s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+@keyframes photoIn{from{opacity:0; transform:scale(0.95); filter:blur(20px)} to{opacity:1; transform:none; filter:blur(0)}}
+.hero-photo::before{
+  content:""; position:absolute; inset:-10%; border-radius:50%;
+  background:conic-gradient(from 220deg, var(--accent), transparent 30%, var(--party-D) 60%, transparent 90%);
+  filter:blur(36px); opacity:0.55; z-index:-1;
+  animation:rotate 18s linear infinite;
+}
+@keyframes rotate{to{transform:rotate(360deg)}}
+.hero-photo img{
+  width:100%; height:100%; border-radius:50%; object-fit:cover;
+  border:2px solid var(--border-strong); background:var(--card);
+  box-shadow:var(--shadow);
+}
+
+/* carousel */
+.carousel-wrap{position:relative; background:transparent}
+.carousel-nav{
+  position:sticky; top:72px; z-index:40;
+  background:transparent;
+  border-bottom:none;
+  padding:10px 5vw;
+  display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+  transition:background var(--transition);
+}
+.carousel-tabs{
+  display:flex; gap:8px; flex:1; min-width:0;
+  overflow-x:auto;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  padding:2px 24px 2px 2px;
+  scroll-behavior:smooth;
+  mask-image:linear-gradient(90deg, black 0%, black calc(100% - 32px), transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg, black 0%, black calc(100% - 32px), transparent 100%);
+}
+.carousel-tabs::-webkit-scrollbar{display:none}
+.carousel-tabs button{
+  font-family:inherit; font-size:12px; font-weight:600;
+  padding:7px 14px; border-radius:999px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--muted);
+  cursor:pointer; transition:all var(--transition); white-space:nowrap;
+}
+.carousel-tabs button:hover{border-color:var(--accent); color:var(--text-strong)}
+.carousel-tabs button.active{
+  background:var(--accent); border-color:var(--accent); color:#0a1020;
+  box-shadow:0 0 0 0 color-mix(in oklab, var(--accent), transparent 30%);
+  animation:tabPulse 2.4s ease-in-out infinite;
+}
+[data-theme="light"] .carousel-tabs button.active{color:#fff}
+@keyframes tabPulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in oklab, var(--accent), transparent 50%)}
+  50%   {box-shadow:0 0 0 6px color-mix(in oklab, var(--accent), transparent 90%)}
+}
+.carousel-arrows{display:flex; gap:8px; align-items:center; flex-shrink:0}
+.carousel-counter{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; padding:0 8px; font-weight:600}
+.carousel-counter .sep{color:var(--muted-2); margin:0 2px}
+.carousel-arrow.floating{
+  position:fixed;
+  top:50%; transform:translateY(-50%);
+  width:52px; height:52px; border-radius:999px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--text); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--transition);
+  z-index:45;
+  box-shadow:var(--shadow);
+}
+.carousel-arrow.floating.prev{left:calc(max(38%, 360px) + 8px)}
+.carousel-arrow.floating.next{right:24px}
+.carousel-arrow.floating:hover:not(:disabled){border-color:var(--accent); color:var(--accent); transform:translateY(-50%) scale(1.06)}
+.carousel-arrow.floating:disabled{opacity:0.18; cursor:not-allowed}
+.carousel-arrow.floating svg{width:22px; height:22px}
+@media (max-width: 980px){
+  .carousel-arrow.floating{width:44px; height:44px}
+  .carousel-arrow.floating.prev{left:12px}    /* on mobile, side panel is stacked, prev goes back to edge */
+  .carousel-arrow.floating.next{right:12px}
+}
+.carousel-track{
+  position:relative;
+  width:100%;
+}
+.slide{
+  display:none;
+  width:100%;
+  min-height:calc(100vh - 120px);
+  background:transparent;
+  flex-direction:column;
+  justify-content:flex-start;
+  scroll-margin-top:120px;
+}
+.slide.alt{background:transparent}
+.slide.active{
+  display:flex;
+  animation:slideIn 0.5s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes slideIn{
+  from{opacity:0; transform:translateY(10px)}
+  to{opacity:1; transform:none}
+}
+.slide-inner{
+  padding:64px 80px 80px;
+  width:100%;
+  max-width:1100px;
+}
+.section-eyebrow{
+  font-size:12px; letter-spacing:.25em; font-weight:700;
+  color:var(--accent); text-transform:uppercase; margin-bottom:14px;
+}
+.section-title{
+  font-size:clamp(40px,4.6vw,68px); font-weight:900; letter-spacing:-0.035em;
+  color:var(--text-strong); margin-bottom:18px; line-height:1.02;
+}
+.section-sub{font-size:17px; color:var(--muted); max-width:720px; margin-bottom:48px; line-height:1.55}
+
+/* impact stats — glass cards matching the chart cards */
+.stats-grid{
+  display:grid; grid-template-columns:repeat(2, 1fr);
+  gap:16px;
+}
+.stat-card{
+  position:relative;
+  background:color-mix(in oklab, var(--card-glass), transparent 30%);
+  backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  border:1px solid var(--border-glass);
+  border-radius:20px;
+  padding:28px 26px;
+  transition:border-color var(--transition), transform var(--transition);
+  overflow:hidden;
+  min-width:0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.18),
+    0 1px 0 rgba(255,255,255,0.04);
+}
+[data-theme="light"] .stat-card{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -1px 0 rgba(14,165,233,0.06),
+    0 6px 24px -8px rgba(3,105,161,0.08);
+}
+.stat-card::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--card-accent, var(--accent));
+}
+.stat-card::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(380px circle at var(--mx,50%) var(--my,-100%), color-mix(in oklab, var(--card-accent, var(--accent)), transparent 82%), transparent 60%);
+  opacity:0; transition:opacity 0.3s ease;
+}
+.stat-card:hover{transform:translateY(-2px); border-color:color-mix(in oklab, var(--card-accent, var(--accent)), transparent 60%)}
+.stat-card:hover::after{opacity:1}
+.stat-card > *{position:relative; z-index:1}
+.stat-card .num{
+  font-family:'DM Mono',ui-monospace,monospace;
+  font-size:clamp(28px, 2.8vw, 44px); font-weight:500;
+  letter-spacing:-0.04em; color:var(--text-strong); line-height:1;
+  font-variant-numeric:tabular-nums;
+  display:block;
+  white-space:nowrap;
+}
+.stat-card .num .unit{font-size:0.5em; color:var(--muted); margin-left:6px}
+.stat-card .lbl{
+  font-size:13px; letter-spacing:.10em; text-transform:uppercase;
+  color:var(--muted); margin-top:14px; font-weight:600;
+}
+.stat-card .desc{font-size:13px; color:var(--muted-2); margin-top:8px}
+.stat-card .pct{
+  margin-top:18px; padding-top:14px;
+  border-top:1px solid var(--border);
+  display:flex; align-items:baseline; gap:8px;
+  flex-wrap:wrap;
+  font-variant-numeric:tabular-nums;
+}
+.stat-card .pct .pct-num{
+  font-family:'DM Mono',ui-monospace,monospace;
+  font-size:clamp(22px, 2.2vw, 32px);
+  font-weight:700;
+  color:var(--card-accent, var(--accent));
+  letter-spacing:-0.03em;
+  line-height:1;
+}
+.stat-card .pct .pct-lbl{
+  font-size:11px; letter-spacing:.10em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;
+}
+.stat-card .pct.solo .pct-num{font-size:14px}
+.stat-card .pct:empty{display:none}
+
+/* district map */
+.map-wrap{
+  height:62vh; min-height:460px;
+  border-radius:20px; overflow:hidden;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:var(--shadow);
+  position:relative;
+}
+#map{width:100%; height:100%}
+.map-legend{
+  position:absolute; bottom:18px; left:18px; z-index:500;
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--border-glass);
+  border-radius:12px; padding:12px 16px;
+  font-size:12px; color:var(--text-strong); font-weight:600;
+  display:flex; align-items:center; gap:10px;
+}
+.map-stat{
+  position:absolute; top:64px; right:18px; z-index:500;
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--border-glass);
+  border-radius:14px;
+  padding:14px 18px;
+  min-width:180px;
+  text-align:right;
+  box-shadow:var(--shadow);
+}
+.map-stat .map-stat-num{
+  font-family:'DM Mono',ui-monospace,monospace;
+  font-size:42px; font-weight:700; line-height:1;
+  letter-spacing:-0.04em;
+  font-variant-numeric:tabular-nums;
+  transition:color 0.4s ease;
+}
+.map-stat .map-stat-lbl{
+  font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--text); font-weight:700; margin-top:8px;
+}
+.map-stat .map-stat-sub{
+  font-size:11px;
+  color:var(--muted); font-weight:500; margin-top:4px;
+  font-variant-numeric:tabular-nums;
+}
+.map-controls{
+  position:absolute; bottom:18px; right:18px; z-index:600;
+  display:flex; flex-direction:column; gap:8px;
+  pointer-events:auto;
+}
+.map-ctl{
+  width:44px; height:44px; border-radius:12px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--text-strong);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--transition);
+  box-shadow:var(--shadow);
+  padding:0;
+  touch-action:manipulation;       /* eliminate 300ms tap delay on touch */
+  -webkit-tap-highlight-color:transparent;
+}
+.map-ctl svg{width:16px; height:16px}
+.map-ctl:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-1px)}
+.map-ctl:active{transform:translateY(0) scale(0.96)}
+.map-stage{position:relative; transition:all var(--transition)}
+.map-filter{
+  position:absolute; top:14px; left:14px; z-index:500;
+  display:flex; gap:6px; flex-wrap:wrap;
+  max-width:calc(100% - 220px);
+}
+.map-expand, .map-close{
+  position:absolute; top:14px; right:14px; z-index:500;
+  width:36px; height:36px; border-radius:10px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--text-strong); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--transition);
+  box-shadow:var(--shadow);
+  padding:0;
+}
+.map-expand svg, .map-close svg{width:16px; height:16px}
+.map-expand:hover{border-color:var(--accent); color:var(--accent); transform:scale(1.05)}
+.map-close{display:none}
+.map-close:hover{border-color:#ef4444; color:#ef4444; transform:scale(1.05)}
+.map-backdrop{
+  position:fixed; inset:0; z-index:9990;
+  background:color-mix(in oklab, var(--bg), transparent 25%);
+  backdrop-filter:blur(24px) saturate(1.2);
+  -webkit-backdrop-filter:blur(24px) saturate(1.2);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.35s ease;
+}
+.map-backdrop.open{opacity:1; pointer-events:auto}
+.map-stage.popup-mode{
+  position:fixed;
+  top:72px; left:24px; right:24px; bottom:24px;
+  z-index:9999;
+  background:var(--bg2);
+  border:1px solid var(--border-glass);
+  border-radius:24px;
+  padding:24px 28px;
+  box-shadow:0 60px 120px -30px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column;
+  animation:popupIn 0.45s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes popupIn{
+  from{opacity:0; transform:scale(0.96) translateY(20px)}
+  to{opacity:1; transform:none}
+}
+.map-stage.popup-mode .map-wrap{flex:1; height:auto !important; min-height:0}
+.map-stage.popup-mode .map-expand{display:none}
+.map-stage.popup-mode .map-close{display:flex}
+@media (max-width:980px){
+  .map-stage.popup-mode{top:72px; left:8px; right:8px; bottom:8px; padding:14px}
+}
+.map-filter-label{
+  font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--muted); font-weight:700;
+  flex-shrink:0;
+}
+.map-filter{
+  display:flex; gap:6px; flex-wrap:wrap;
+  flex:1; min-width:0;
+}
+.map-filter .map-pill{
+  font-family:inherit; font-size:11px; font-weight:600;
+  padding:6px 12px; border-radius:999px;
+  border:1px solid var(--border-glass);
+  background:var(--card-glass);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  color:var(--text);
+  cursor:pointer; transition:all var(--transition); white-space:nowrap;
+  display:inline-flex; align-items:center; gap:6px;
+  letter-spacing:.02em;
+}
+.map-filter .map-pill .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0; box-shadow:0 0 8px currentColor}
+.map-filter .map-pill:hover{color:var(--text-strong); border-color:var(--accent)}
+.map-filter .map-pill.active{
+  background:color-mix(in oklab, var(--accent), transparent 70%);
+  border-color:var(--accent); color:var(--text-strong);
+}
+.map-tooltip{
+  /* deck.gl injects an inline-styled tooltip */
+}
+#map canvas{cursor:grab !important}
+#map canvas:active{cursor:grabbing !important}
+.map-legend::before{content:""; width:14px; height:14px; border-radius:4px; background:var(--district-stroke)}
+
+/* charts grid */
+.charts-grid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+  gap:20px;
+}
+.chart-card{
+  background:color-mix(in oklab, var(--card-glass), transparent 30%);
+  backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  border:1px solid var(--border-glass);
+  border-radius:20px;
+  padding:36px;
+  position:relative;
+  overflow:hidden;
+  transition:border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.18),
+    0 1px 0 rgba(255,255,255,0.04);
+}
+[data-theme="light"] .chart-card{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -1px 0 rgba(14,165,233,0.06),
+    0 6px 24px -8px rgba(3,105,161,0.08);
+}
+/* cursor spotlight — illuminates whichever side the mouse is on */
+.chart-card::before{
+  content:"";
+  position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,-100%), color-mix(in oklab, var(--accent), transparent 78%), transparent 60%);
+  opacity:0; transition:opacity 0.3s ease;
+  z-index:0;
+}
+.chart-card:hover::before{opacity:1}
+.chart-card:hover{
+  border-color:color-mix(in oklab, var(--accent), transparent 55%);
+  transform:translateY(-2px);
+}
+.chart-card > *{position:relative; z-index:1}
+.chart-title{font-size:13px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:18px}
+.chart-headline{font-size:32px; font-weight:900; color:var(--text-strong); letter-spacing:-0.02em; margin-bottom:24px; line-height:1}
+.chart-headline .small{font-size:14px; color:var(--muted); font-weight:500; margin-left:6px}
+.donut-wrap{display:flex; align-items:center; gap:20px}
+.donut-svg{width:160px; height:160px; flex-shrink:0}
+.legend-row .name{flex:1; font-weight:500; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.legend-row .val{color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; flex-shrink:0; font-size:12px}
+.legend-row{position:relative; cursor:default}
+.legend-row[data-tip]:hover::after{
+  content:attr(data-tip);
+  position:absolute; left:0; bottom:calc(100% + 6px);
+  z-index:50;
+  white-space:nowrap;
+  padding:7px 12px; border-radius:8px;
+  background:color-mix(in oklab, var(--text-strong), transparent 5%);
+  color:var(--bg);
+  font-size:12px; font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  pointer-events:none;
+  animation:tipIn 0.18s ease forwards;
+}
+.legend-row[data-tip]:hover::before{
+  content:""; position:absolute; left:14px; bottom:calc(100% + 1px);
+  width:0; height:0;
+  border:5px solid transparent;
+  border-top-color:color-mix(in oklab, var(--text-strong), transparent 5%);
+  z-index:50; pointer-events:none;
+}
+@keyframes tipIn{from{opacity:0; transform:translateY(2px)} to{opacity:1; transform:none}}
+.donut-svg circle{transition:stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1)}
+.donut-center{font-size:28px; font-weight:900; fill:var(--text-strong)}
+.donut-center-sub{font-size:9px; letter-spacing:.16em; fill:var(--muted); font-weight:700}
+.legend{display:flex; flex-direction:column; gap:10px; flex:1; min-width:0; font-size:13px}
+.legend-row{display:flex; align-items:center; gap:8px; color:var(--text); min-width:0}
+.legend-dot{width:10px; height:10px; border-radius:3px; flex-shrink:0}
+.legend-row .name{flex:1; font-weight:500}
+.legend-row .val{color:var(--muted); font-variant-numeric:tabular-nums}
+
+.bar-list{display:flex; flex-direction:column; gap:18px}
+.bar-row{display:flex; flex-direction:column; gap:8px}
+.bar-row .meta{display:flex; justify-content:space-between; font-size:14px}
+.bar-row .meta .lbl{font-weight:600; color:var(--text)}
+.bar-row .meta .val{color:var(--muted); font-variant-numeric:tabular-nums}
+.bar-track{
+  height:10px; border-radius:999px; overflow:hidden;
+  background:rgba(148,163,184,0.18);
+  box-shadow:inset 0 0 0 1px rgba(148,163,184,0.10);
+}
+.hint-pill{
+  display:inline-block;
+  font-size:11px; padding:3px 10px; border-radius:999px;
+  background:color-mix(in oklab, var(--accent), transparent 80%);
+  color:var(--accent); font-weight:600; letter-spacing:.04em;
+  margin-left:8px;
+  vertical-align:middle;
+}
+[data-theme="light"] .bar-track{
+  background:rgba(14,165,233,0.12);
+  box-shadow:inset 0 0 0 1px rgba(14,165,233,0.18);
+}
+.bar-fill{height:100%; width:0; border-radius:999px; transition:width 1.2s cubic-bezier(0.22,1,0.36,1); box-shadow:0 0 12px var(--card-accent, transparent)}
+
+/* budgets / ECOP trend */
+.budgets-headline{
+  display:flex; align-items:baseline; gap:18px;
+  margin-bottom:32px; flex-wrap:wrap;
+}
+.budgets-headline .reports-bigno{
+  font-size:clamp(96px,12vw,160px); line-height:0.85;
+  display:inline-flex; align-items:baseline;
+}
+.budgets-bigno-suffix{
+  font-size:clamp(13px, 1.05vw, 16px); letter-spacing:.16em; text-transform:uppercase;
+  color:#ef4444; font-weight:700;
+}
+.budgets-grid{
+  display:grid; grid-template-columns:1fr 1.4fr;
+  gap:32px; align-items:center;
+  margin-bottom:32px;
+}
+.budgets-summary{display:flex; flex-direction:column; gap:14px}
+.budgets-about{color:var(--text); font-size:15px; line-height:1.65; margin:0}
+.budgets-about strong{color:var(--text-strong); font-weight:700}
+
+/* full-width banner under both columns */
+.budgets-banner{
+  display:flex; align-items:center; gap:24px;
+  padding:18px 24px;
+  border-left:3px solid #ef4444;
+  background:color-mix(in oklab, #ef4444, transparent 92%);
+  border-radius:0 12px 12px 0;
+  font-size:14px; line-height:1.5; color:var(--text);
+}
+.budgets-banner-tag{
+  font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  font-weight:700; color:#ef4444;
+  flex-shrink:0; white-space:nowrap;
+  border-right:1px solid color-mix(in oklab, #ef4444, transparent 70%);
+  padding-right:24px;
+}
+.budgets-banner-text{flex:1}
+.budgets-banner-text strong{color:var(--text-strong); font-weight:700}
+
+.budgets-chart-wrap{
+  background:color-mix(in oklab, var(--card-glass), transparent 30%);
+  backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  border:1px solid var(--border-glass);
+  border-radius:20px;
+  padding:20px 16px 12px;
+  color:var(--text);
+}
+.budgets-svg{width:100%; height:auto; display:block}
+.budgets-caption{
+  font-size:11px; letter-spacing:.10em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;
+  text-align:center; margin-top:6px;
+}
+@media (max-width:1100px){
+  .budgets-grid{grid-template-columns:1fr; gap:24px}
+  .budgets-banner{flex-direction:column; align-items:flex-start; gap:8px}
+  .budgets-banner-tag{border-right:none; padding-right:0}
+}
+
+/* reports + justice section */
+.reports-summary{
+  display:grid; grid-template-columns:1fr; gap:14px;
+  margin-bottom:48px;
+}
+.reports-bigno{margin-bottom:-8px}
+.reports-summary p{margin-top:0}
+.justice-layout{
+  display:grid; grid-template-columns:1fr auto;
+  gap:56px; align-items:center;
+}
+.justice-headline{display:flex; flex-direction:column; gap:18px}
+.justice-headline .reports-bigno{font-size:clamp(110px,16vw,220px)}
+.justice-headline p{color:var(--muted); font-size:15px; max-width:520px}
+.justice-donut{display:flex; flex-direction:column; align-items:center; gap:24px}
+.donut-lg{width:220px; height:220px; flex-shrink:0}
+.donut-lg circle{transition:stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1)}
+.donut-center-lg{font-size:36px; font-weight:900; fill:var(--text-strong)}
+.donut-center-sub-lg{font-size:10px; letter-spacing:.18em; fill:var(--muted); font-weight:700}
+.justice-legend{font-size:14px; max-width:280px}
+@media (max-width:1100px){
+  .justice-layout{grid-template-columns:1fr}
+  .justice-donut{flex-direction:row; flex-wrap:wrap}
+}
+.reports-bigno{
+  font-family:'DM Mono',monospace;
+  font-size:clamp(96px,14vw,200px); font-weight:300;
+  line-height:0.85; color:var(--r-1); letter-spacing:-0.05em;
+  font-variant-numeric:tabular-nums;
+}
+[data-theme="dark"] .reports-bigno{
+  text-shadow:0 0 24px color-mix(in oklab, var(--r-1), transparent 70%);
+}
+.reports-summary p{color:var(--muted); font-size:16px; max-width:480px}
+
+/* savings */
+.savings-card{
+  position:relative;
+  background:color-mix(in oklab, var(--card-glass), transparent 20%);
+  backdrop-filter:blur(24px) saturate(1.4);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  border:1px solid var(--border-glass);
+  border-radius:28px;
+  padding:60px 56px 48px;
+  overflow:hidden;
+  isolation:isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -2px 12px -4px color-mix(in oklab, var(--accent), transparent 80%),
+    0 30px 80px -30px color-mix(in oklab, var(--accent), transparent 60%);
+}
+[data-theme="light"] .savings-card{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 0 -2px 12px -4px rgba(14,165,233,0.10),
+    0 40px 80px -30px rgba(3,105,161,0.18);
+}
+/* animated conic edge — subtle iridescent shimmer along the border */
+.savings-card::before{
+  content:"";
+  position:absolute; inset:-1px; z-index:-1;
+  border-radius:inherit;
+  background:conic-gradient(from var(--ang,0deg),
+    transparent 0%,
+    color-mix(in oklab, var(--accent), transparent 65%) 25%,
+    transparent 50%,
+    color-mix(in oklab, var(--party-I), transparent 65%) 75%,
+    transparent 100%);
+  animation:savingsConic 14s linear infinite;
+  filter:blur(8px);
+  opacity:0.55;
+}
+@property --ang{syntax:'<angle>'; inherits:false; initial-value:0deg}
+@keyframes savingsConic{to{--ang:360deg}}
+/* fallback for browsers w/o @property: still animates via class */
+.savings-card::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(700px circle at var(--mx,50%) var(--my,-30%), color-mix(in oklab, var(--accent), transparent 80%), transparent 60%);
+  opacity:0; transition:opacity 0.4s ease;
+  z-index:0;
+}
+.savings-card:hover::after{opacity:1}
+.savings-card > *{position:relative; z-index:1}
+.savings-headline{
+  margin-bottom:8px; line-height:1.1;
+  display:flex; flex-direction:column; gap:8px;
+}
+.savings-headline .lbl{
+  font-size:12px; letter-spacing:.20em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;
+}
+.savings-headline .amt{
+  font-family:'DM Mono',monospace;
+  font-size:clamp(48px,7vw,96px); font-weight:300;
+  letter-spacing:-0.05em; line-height:0.9;
+  color:var(--text-strong);
+  font-variant-numeric:tabular-nums;
+  display:block;
+  white-space:nowrap;
+}
+.savings-sub{font-size:14px; color:var(--muted-2); margin-bottom:36px; letter-spacing:.04em}
+.savings-bars{display:flex; flex-direction:column; gap:20px}
+.savings-bar{display:flex; align-items:center; gap:20px}
+.savings-bar .lbl{width:170px; font-weight:700; font-size:14px; color:var(--text)}
+.savings-bar .lbl .small{display:block; font-weight:500; color:var(--muted); font-size:12px; margin-top:2px}
+.savings-bar .track{flex:1; height:36px; background:var(--card-2); border-radius:8px; overflow:hidden; position:relative}
+.savings-bar .fill{height:100%; display:flex; align-items:center; padding:0 14px; color:#fff; font-weight:700; font-size:14px; font-variant-numeric:tabular-nums; width:0; transition:width 1.6s cubic-bezier(0.22,1,0.36,1)}
+.savings-bar.nh .fill{background:linear-gradient(90deg, #ef4444, #f97316)}
+.savings-bar.hc .fill{background:linear-gradient(90deg, #34d399, #22d3ee)}
+
+/* empty / footer */
+.empty{
+  text-align:center; padding:60px; color:var(--muted);
+  background:var(--card); border:1px dashed var(--border-strong); border-radius:18px;
+}
+footer{
+  padding:48px 8vw; border-top:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:13px; color:var(--muted); flex-wrap:wrap; gap:16px;
+}
+footer .brand{color:var(--text-strong)}
+
+/* responsive */
+@media (max-width: 980px){
+  .profile-layout{display:block}
+  .profile-side{position:static; width:100%; height:auto; min-height:auto; padding:32px 6vw; border-right:none; border-bottom:1px solid var(--border)}
+  .profile-main{margin-left:0}
+  .side-content{flex-direction:row; align-items:center; max-width:100%; gap:24px}
+  .hero-photo{max-width:160px; flex-shrink:0}
+  .side-info h1{font-size:clamp(28px, 6vw, 44px)}
+  .side-info .district{font-size:16px}
+  .topbar{padding:14px 20px}
+  .slide-inner{padding:96px 24px 64px; max-width:none}
+  .carousel-nav{padding:14px 6vw}
+  .reports-summary{grid-template-columns:1fr; gap:24px}
+  .savings-bar{flex-direction:column; align-items:stretch}
+  .savings-bar .lbl{width:auto}
+  .carousel-tabs{order:2; width:100%}
+  .carousel-arrows{order:1; margin-left:auto}
+}
+@media (max-width: 600px){
+  .side-content{flex-direction:column; align-items:flex-start}
+}
+
+</style>
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true">
+    <div class="page-bg-img"></div>
+    <div class="page-bg-tint"></div>
+  </div>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Central Boston Elder Services">
+      <img src="https://raw.githubusercontent.com/eponceCBES/dashboard_animations/3c0386a7b35c6e5cb0ad6d39a3cdd396b410c7e2/CBES%20Logo.png" alt="Central Boston Elder Services" />
+    </a>
+    <div class="topbar-right">
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="map-backdrop" id="mapBackdrop" aria-hidden="true"></div>
+  <button class="carousel-arrow floating prev" aria-label="Previous section">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="carousel-arrow floating next" aria-label="Next section">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+
+  <div class="profile-layout">
+    <aside class="profile-side">
+      <div class="boston-bg" aria-hidden="true"></div>
+      <div class="side-content">
+        <div class="hero-photo"><img id="heroPhoto" alt="" /></div>
+        <div class="side-info">
+          <div class="hero-meta">
+            <span class="party-pill" id="partyPill"></span>
+            <span class="tier-tag" id="tierTag"></span>
+          </div>
+          <h1 id="heroName"></h1>
+          <div class="district" id="heroDist"></div>
+          <a class="official" id="officialLink" target="_blank" rel="noopener">
+            Official Website
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <main class="profile-main">
+      <div class="carousel-wrap">
+    <nav class="carousel-nav">
+      <div class="carousel-tabs">
+        <button data-jump="impact"   class="active">Impact</button>
+        <button data-jump="savings">Cost Savings</button>
+        <button data-jump="budgets">Budgets</button>
+        <button data-jump="district">District</button>
+        <button data-jump="people">Who We Serve</button>
+        <button data-jump="reports">Abuse Reports</button>
+        <button data-jump="medical">Health</button>
+        <button data-jump="justice">Justice Impact</button>
+      </div>
+      <span class="carousel-counter"><span id="carCur">1</span><span class="sep"> / </span><span id="carTotal">8</span></span>
+    </nav>
+
+    <div class="carousel-track">
+      <section class="slide" id="impact">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Impact in this District</div>
+          <h2 class="section-title">Real numbers, real people.</h2>
+          <div class="stats-grid">
+            <div class="stat-card" style="--card-accent:#7dd3fc"><div class="num" data-key="total">0</div><div class="lbl">Consumers Served</div><div class="desc">individuals enrolled in CBES services</div><div class="pct" data-pct-key="total"></div></div>
+            <div class="stat-card" style="--card-accent:#a78bfa"><div class="num" data-key="lives_touched">0</div><div class="lbl">Lives Touched</div><div class="desc">consumers and their caregivers</div><div class="pct" data-pct-key="lives_touched"></div></div>
+            <div class="stat-card" style="--card-accent:#34d399"><div class="num" data-key="total_meals">0</div><div class="lbl">Meals Delivered</div><div class="desc">2025 to date, home-delivered &amp; congregate</div><div class="pct" data-pct-key="total_meals"></div></div>
+            <div class="stat-card" style="--card-accent:#f59e0b"><div class="num" data-key="total_care_hours">0</div><div class="lbl">Care Hours</div><div class="desc">2025 to date, home-care services</div><div class="pct" data-pct-key="total_care_hours"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide alt" id="savings">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Cost Savings</div>
+          <h2 class="section-title">Home care saves money.</h2>
+          <div class="savings-card" id="savingsCard"></div>
+        </div>
+      </section>
+
+      <section class="slide" id="budgets">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Budget Cuts</div>
+          <h2 class="section-title">ECOP enrollment is shrinking.</h2>
+          <div id="budgetsBlock"></div>
+        </div>
+      </section>
+
+      <section class="slide" id="district">
+        <div class="slide-inner">
+          <div class="section-eyebrow">The District</div>
+          <h2 class="section-title" id="districtTitle"></h2>
+          <div class="map-stage" id="mapStage">
+            <div class="map-wrap">
+              <div id="map"></div>
+              <div class="map-filter" id="mapFilter"></div>
+              <div class="map-legend" id="mapLegend"></div>
+              <div class="map-stat" id="mapStat"></div>
+              <button class="map-expand" id="mapExpand" aria-label="Expand map">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7"/></svg>
+              </button>
+              <button class="map-close" id="mapClose" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            <div class="map-controls" id="mapControls">
+              <button class="map-ctl" data-act="zoomIn" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button class="map-ctl" data-act="zoomOut" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14"/></svg>
+              </button>
+              <button class="map-ctl" data-act="rotateCW" aria-label="Rotate right">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+              </button>
+              <button class="map-ctl" data-act="rotateCCW" aria-label="Rotate left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+              </button>
+              <button class="map-ctl" data-act="reset" aria-label="Reset view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>
+              </button>
+            </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide alt" id="people">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Who We Serve</div>
+          <h2 class="section-title">A portrait of your district.</h2>
+          <div class="charts-grid" id="chartsGrid"></div>
+        </div>
+      </section>
+
+      <section class="slide" id="reports">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Protective Services</div>
+          <h2 class="section-title">Elder abuse &amp; exploitation.</h2>
+          <div id="reportsBlock"></div>
+        </div>
+      </section>
+
+      <section class="slide alt" id="medical">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Health</div>
+          <h2 class="section-title">Health conditions.</h2>
+          <div id="medicalBlock"></div>
+        </div>
+      </section>
+
+      <section class="slide" id="justice">
+        <div class="slide-inner">
+          <div class="section-eyebrow">Justice-Impacted</div>
+          <h2 class="section-title">Reentry &amp; record barriers.</h2>
+          <div id="justiceBlock"></div>
+        </div>
+      </section>
+    </div>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <div class="brand">Central Boston <span style="color:var(--accent)">Elder Services</span></div>
+    <div>Generated 2026-05-05 • Suffolk County, MA</div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/deck.gl@8.9.36/dist.min.js"></script>
+  <script>
+  const DATA = {"name": "Daniel Joseph Ryan", "title": "State Representative", "tier": "state_rep", "scope": "district", "dist": "2nd Suffolk", "party": "D", "url": "https://malegislature.gov/Legislators/Profile/DJR1", "photo": "https://malegislature.gov/Legislators/Profile/170/DJR1.jpg", "total": 202, "lives_touched": 256, "total_meals": 23290, "total_care_hours": 46048, "gender": {"F": {"n": 128, "pct": 63.4}, "M": {"n": 74, "pct": 36.6}}, "ethnicity": {"Asian": {"n": 87, "pct": 49.2}, "Non-Minority (White, non-Hispanic)": {"n": 62, "pct": 35.0}, "Black/African American": {"n": 12, "pct": 6.8}, "Hispanic": {"n": 12, "pct": 6.8}, "Other": {"n": 4, "pct": 2.3}}, "age": {"75\u201384": {"n": 76, "pct": 37.6}, "65\u201374": {"n": 63, "pct": 31.2}, "85+": {"n": 56, "pct": 27.7}, "Under 65": {"n": 7, "pct": 3.5}}, "masshealth": {"MassHealth": {"n": 150, "pct": 74.3}, "No MassHealth": {"n": 52, "pct": 25.7}}, "income": {"Higher Income": {"n": 147, "pct": 72.8}, "Low Income": {"n": 55, "pct": 27.2}}, "r_total": 122, "r_allegation": {"Self-Neglect": {"n": 55, "pct": 45.8}, "Exploitation": {"n": 26, "pct": 21.7}, "Emotional Abuse": {"n": 18, "pct": 15.0}, "Neglect": {"n": 15, "pct": 12.5}, "Physical Abuse": {"n": 5, "pct": 4.2}, "Sexual Abuse": {"n": 1, "pct": 0.8}}, "conditions": {"_assessed": 63, "items": {"Social Isolation": {"n": 63, "pct": 100.0}, "Heart & Circulation": {"n": 54, "pct": 85.7}, "Mental Health": {"n": 38, "pct": 60.3}, "Alzheimer's & Related Dementias": {"n": 27, "pct": 42.9}, "Diabetes": {"n": 25, "pct": 39.7}, "Obstructive Lung": {"n": 10, "pct": 15.9}}}, "justice": {"total": 20, "categories": {"CORI": {"n": 15, "pct": 75.0}, "Incarceration": {"n": 3, "pct": 15.0}, "Arrest": {"n": 2, "pct": 10.0}}}, "hex_bins": [{"lat": 42.34492658823529, "lon": -71.09613599999999, "total": 13, "j": 0, "c": {"Alzheimer's & Related Dementias": 3, "Diabetes": 1, "Heart & Circulation": 5, "Mental Health": 6, "Obstructive Lung": 2, "Social Isolation": 7}}, {"lat": 42.34855482352941, "lon": -71.09606823529411, "total": 139, "j": 0, "c": {"Alzheimer's & Related Dementias": 12, "Diabetes": 16, "Heart & Circulation": 30, "Mental Health": 20, "Obstructive Lung": 5, "Social Isolation": 35}}, {"lat": 42.342729882352934, "lon": -71.10014823529411, "total": 24, "j": 0, "c": {"Alzheimer's & Related Dementias": 7, "Diabetes": 4, "Heart & Circulation": 11, "Mental Health": 5, "Obstructive Lung": 2, "Social Isolation": 12}}, {"lat": 42.343915764705876, "lon": -71.09833270588236, "total": 13, "j": 0, "c": {"Alzheimer's & Related Dementias": 4, "Diabetes": 2, "Heart & Circulation": 6, "Mental Health": 4, "Obstructive Lung": 1, "Social Isolation": 6}}], "condition_keys": ["Alzheimer's & Related Dementias", "Diabetes", "Heart & Circulation", "Mental Health", "Obstructive Lung", "Social Isolation"], "ecop_trend": {"months": ["Jan 2023", "Feb 2023", "Mar 2023", "Apr 2023", "May 2023", "Jun 2023", "Jul 2023", "Aug 2023", "Sep 2023", "Oct 2023", "Nov 2023", "Dec 2023", "Jan 2024", "Feb 2024", "Mar 2024", "Apr 2024", "May 2024", "Jun 2024", "Jul 2024", "Aug 2024", "Sep 2024", "Oct 2024", "Nov 2024", "Dec 2024", "Jan 2025", "Feb 2025", "Mar 2025", "Apr 2025", "May 2025", "Jun 2025", "Jul 2025", "Aug 2025", "Sep 2025", "Oct 2025", "Nov 2025", "Dec 2025", "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "May 2026"], "active": [325, 326, 322, 323, 328, 323, 322, 329, 347, 340, 347, 346, 353, 365, 369, 375, 379, 382, 368, 372, 379, 385, 383, 389, 379, 369, 345, 319, 258, 237, 236, 226, 219, 200, 198, 195, 196, 191, 198, 202, 198]}, "ecop_summary": {"current": 198, "peak": 389, "drop_pct": 49, "peak_month": "December 2024", "current_month": "May 2026"}, "cbes_total": 9222, "cbes_lives_touched": 11447, "cbes_total_meals": 701182, "cbes_total_care_hours": 1462398, "geometry": {"type": "MultiPolygon", "coordinates": [[[[-71.0693525956408, 42.38520567779302], [-71.0683505957573, 42.385075677854566], [-71.06767159554072, 42.385623677830964], [-71.06601359480031, 42.38552267820436], [-71.06615559508352, 42.38531267761754], [-71.06501059375556, 42.384856677841235], [-71.06472259451496, 42.38510067773542], [-71.06332559355091, 42.38508467792905], [-71.06423859362445, 42.383793677922135], [-71.06398559375167, 42.38367267806466], [-71.0635675931133, 42.3837656780915], [-71.06259459373781, 42.38489567812851], [-71.06171159319393, 42.38499567777307], [-71.06133759250524, 42.38475167779946], [-71.06234359373248, 42.38350367746266], [-71.06156359331369, 42.384049677480206], [-71.06123359331183, 42.38396067765102], [-71.06176559306897, 42.383428677523234], [-71.06107959221431, 42.383342678049125], [-71.0600095927402, 42.38482467788925], [-71.0595705920554, 42.38469267832635], [-71.06047059257213, 42.383334677720356], [-71.0599835920584, 42.38330367757331], [-71.05873359266857, 42.38497367783772], [-71.05033858897633, 42.38413367835938], [-71.05047258915435, 42.38392867839874], [-71.05003458942029, 42.383760678002865], [-71.04972258877508, 42.38399167805513], [-71.04779058902373, 42.38357567862737], [-71.04722258785182, 42.38280767823667], [-71.04750058813408, 42.381694678156684], [-71.04939958857359, 42.382103678140346], [-71.04972458840402, 42.38166367783905], [-71.04730658777606, 42.381279677745866], [-71.04765058838781, 42.379877677116546], [-71.05114058916843, 42.38036467774095], [-71.05156758941749, 42.38076167769354], [-71.05738359171566, 42.3815536776918], [-71.05681959142986, 42.38163167786669], [-71.05758059128242, 42.3818336771628], [-71.05863659238534, 42.38140067757181], [-71.05826559131717, 42.38085367756313], [-71.05571259074823, 42.38020067763247], [-71.04822858881116, 42.37933567707283], [-71.0475295881264, 42.37698467710872], [-71.04914158855112, 42.37813467717982], [-71.0494065884496, 42.3779456773784], [-71.04791158782983, 42.376670676731834], [-71.04806958781859, 42.376474676508444], [-71.04927058838274, 42.377187676994325], [-71.04961658818081, 42.3767396769924], [-71.04790958796661, 42.375747676742094], [-71.04801958815827, 42.37557067664527], [-71.04973658817015, 42.37648967682236], [-71.0498885885117, 42.37605467647403], [-71.04825058868745, 42.37493567641901], [-71.04849258863592, 42.37471567691343], [-71.04968858809798, 42.37550067683144], [-71.05064058900408, 42.37518167690877], [-71.04870658769717, 42.37345567657339], [-71.04895258807807, 42.37305967637464], [-71.05058958858753, 42.374529676440126], [-71.05077358889888, 42.37394067586528], [-71.04926158787958, 42.37262567644506], [-71.04936858858632, 42.372434676333825], [-71.0508155887884, 42.373669675796776], [-71.05117358945495, 42.37329867616658], [-71.0496985887478, 42.371929676076725], [-71.05009358896054, 42.37170567598112], [-71.05154458908127, 42.37306267568899], [-71.05209258888732, 42.37272867644596], [-71.0505805888748, 42.371355675798966], [-71.05081158856736, 42.371233676077615], [-71.0546385897723, 42.374353676532884], [-71.0525005895308, 42.372077675996934], [-71.05375658981684, 42.37296867565405], [-71.0538165900156, 42.372499675506546], [-71.05323558938132, 42.37196467577093], [-71.0535445901558, 42.37194167572129], [-71.05573859069328, 42.373694676226535], [-71.05592759000268, 42.37356067610668], [-71.05413258971062, 42.37185467565616], [-71.05485359024756, 42.37178267569439], [-71.05691159142035, 42.37265567576487], [-71.05766059108285, 42.37223667530636], [-71.05570247263182, 42.371221220221756], [-71.05939531672598, 42.36960408305535], [-71.06000259188045, 42.369623675125204], [-71.06050959173282, 42.37017267539958], [-71.06132959225297, 42.36971667554416], [-71.06083663763688, 42.368679578907475], [-71.06299459297776, 42.36839967476381], [-71.06392159299578, 42.36902467462637], [-71.06947859424231, 42.36905467455775], [-71.0747925962935, 42.363781673210056], [-71.07609259607715, 42.360388672700935], [-71.07733459675332, 42.35909267294734], [-71.09123560162634, 42.35434667101861], [-71.08975759976246, 42.351371670856516], [-71.09165060154375, 42.35080967079074], [-71.09204460039297, 42.346858669531684], [-71.09227060152891, 42.347119669731164], [-71.09329560075025, 42.346519669726185], [-71.09430360114531, 42.34558566989636], [-71.09476860169534, 42.34445166924192], [-71.09955460330792, 42.34311866871999], [-71.09854060264134, 42.34091866876417], [-71.09688560160443, 42.33903466809961], [-71.09728960220882, 42.33879166796495], [-71.09838360281395, 42.33883266783945], [-71.10023560321795, 42.33990766861904], [-71.10461960468515, 42.344396669297666], [-71.10551660508351, 42.343820668574956], [-71.10719460643703, 42.34698566912496], [-71.10689460623912, 42.34859666971078], [-71.10600160497079, 42.3484126694283], [-71.10506760564395, 42.34670466974847], [-71.10335260499164, 42.34716466970441], [-71.1028206048834, 42.3461966690972], [-71.09990560384293, 42.34753667000904], [-71.10114360405447, 42.34776666934666], [-71.1005646042771, 42.34792666951863], [-71.10099560331236, 42.34797866949721], [-71.10055560336959, 42.349365669890254], [-71.10362460485892, 42.34974166994221], [-71.10303260528696, 42.352522670686604], [-71.09789060270042, 42.35312867116125], [-71.09881760379236, 42.35535067153982], [-71.09656460330393, 42.35609867186846], [-71.09688660279905, 42.35663567115725], [-71.09313860247666, 42.35823167182797], [-71.09325460233325, 42.3584516716356], [-71.09384560244865, 42.35831867196168], [-71.09406560239073, 42.35870767218865], [-71.09348960225817, 42.358889672018925], [-71.09485260288803, 42.36017467236404], [-71.09002160106368, 42.362699673021154], [-71.08467559958872, 42.36230767305583], [-71.0843895988302, 42.362721672971276], [-71.08943260060818, 42.36479867333389], [-71.0889416005256, 42.36606267382243], [-71.08791460097854, 42.366366674072594], [-71.08447259901651, 42.36596767399141], [-71.08428559953101, 42.36669767368574], [-71.0797255975874, 42.366128673930284], [-71.07861859776891, 42.37087167506531], [-71.07556959732253, 42.37036967459632], [-71.07606059680745, 42.3707216745294], [-71.07537259684275, 42.372575674936556], [-71.0749465965695, 42.372926675622864], [-71.07400159624824, 42.37255767506433], [-71.07268959654867, 42.3732306755343], [-71.07565759734572, 42.38020467630264], [-71.0807015997173, 42.38104767655332], [-71.08097159911135, 42.38233167692407], [-71.07978559887226, 42.382940677414226], [-71.07427359810156, 42.39059567875413], [-71.07242059643569, 42.387806678235386], [-71.06991359629951, 42.38646967810956], [-71.07052659653144, 42.386044677562076], [-71.0693525956408, 42.38520567779302]]], [[[-71.05466859198475, 42.40318168211432], [-71.0414355877345, 42.401804681581254], [-71.04056858685628, 42.40199068193587], [-71.04814558941882, 42.39664268088462], [-71.05107659071868, 42.39778968041351], [-71.0526215904108, 42.39717168029692], [-71.05321659129305, 42.39641868041409], [-71.05330159068839, 42.395400680068406], [-71.05252159013381, 42.39488368040638], [-71.05055558939087, 42.394499680122095], [-71.05014658978236, 42.394009679735184], [-71.05033059013218, 42.39305968006067], [-71.05205759075359, 42.39151567992698], [-71.05254859102078, 42.39160567950451], [-71.05523259178564, 42.38912067864875], [-71.05711259224569, 42.38872267888823], [-71.05735259164885, 42.38916367864699], [-71.05808459196261, 42.38921767890547], [-71.05834459200801, 42.388875678674694], [-71.0585175925538, 42.38925067909358], [-71.05949059226425, 42.38937267862296], [-71.06032959244348, 42.38884867925097], [-71.06232259351411, 42.38903267836482], [-71.0631805932534, 42.38881567888785], [-71.06426959459064, 42.38894367900312], [-71.06437459469738, 42.38923067845372], [-71.0677455958995, 42.38935867835872], [-71.07007659616622, 42.390041679066485], [-71.07047259567594, 42.38964667843984], [-71.07110559675507, 42.389854678861774], [-71.07064459678355, 42.39059467896031], [-71.07119159664303, 42.39156667868495], [-71.07101759651951, 42.3920426788037], [-71.07038059662244, 42.39260767963681], [-71.06962859646784, 42.39276967896868], [-71.06873059640844, 42.393763679269455], [-71.06895559642874, 42.393956679607484], [-71.06736759552238, 42.395304679916656], [-71.06685859479798, 42.39498767968126], [-71.06694459594496, 42.39476367988441], [-71.06183859429679, 42.400312680715295], [-71.06057359326404, 42.40123168089017], [-71.059751593705, 42.402554681357636], [-71.05766859326712, 42.40316168123278], [-71.05466859198475, 42.40318168211432]]]]}};
+  const NH_HOURLY = 72.12, HC_HOURLY = 28.0;
+
+  // ---- theme ----
+  const root = document.documentElement;
+  const stored = localStorage.getItem('cbes_theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const cur = root.getAttribute('data-theme');
+    const nxt = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', nxt);
+    localStorage.setItem('cbes_theme', nxt);
+    refreshMapTiles();
+  });
+
+  // ---- hero fill ----
+  document.title = DATA.name + ' — ' + DATA.title + ' — CBES';
+  const partyMap = {D:'Democrat', R:'Republican', I:'Independent'};
+  const pill = document.getElementById('partyPill');
+  pill.textContent = partyMap[DATA.party] || DATA.party || '';
+  pill.setAttribute('data-p', DATA.party || '');
+  document.getElementById('tierTag').textContent = DATA.title;
+  const heroName = document.getElementById('heroName');
+  heroName.innerHTML = DATA.name.split(' ').map(w => '<span class="word">'+w+'</span>').join(' ');
+  document.getElementById('heroDist').textContent = DATA.dist;
+  const link = document.getElementById('officialLink');
+  if (DATA.url) link.href = DATA.url; else link.style.display = 'none';
+  const photo = document.getElementById('heroPhoto');
+  photo.src = DATA.photo;
+  photo.onerror = () => {
+    photo.style.display = 'none';
+    photo.parentElement.style.background = 'var(--card)';
+    photo.parentElement.insertAdjacentHTML('beforeend',
+      '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:96px;font-weight:900;color:var(--accent);border-radius:50%;border:2px solid var(--border-strong)">'+DATA.name[0]+'</div>');
+  };
+
+  // populate impact-card targets from DATA keys
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const k = el.getAttribute('data-key');
+    const v = DATA[k];
+    if (v == null) return;
+    el.setAttribute('data-count', v);
+  });
+  // populate "% of all CBES" footer on each impact card
+  document.querySelectorAll('[data-pct-key]').forEach(el => {
+    const k = el.getAttribute('data-pct-key');
+    const num = DATA[k];
+    const denom = DATA['cbes_' + k];
+    if (num == null || !denom) return;
+    const pct = num / denom * 100;
+    const label = ({
+      total:'CBES Consumers', lives_touched:'CBES Lives Touched',
+      total_meals:'CBES Meals',     total_care_hours:'CBES Care Hours',
+    })[k] || 'CBES Total';
+    if (pct >= 99.5){
+      el.classList.add('solo');
+      el.innerHTML = '<span class="pct-num">Citywide total</span>';
+    } else {
+      const pretty = pct >= 10 ? Math.round(pct) : pct.toFixed(1).replace(/\.0$/, '');
+      el.innerHTML = '<span class="pct-num">' + pretty + '%</span>'
+                   + '<span class="pct-lbl">of ' + label + '</span>';
+    }
+  });
+  const _nh = document.getElementById('nhRate'); if (_nh) _nh.textContent = '$' + NH_HOURLY.toFixed(2);
+  const _hc = document.getElementById('hcRate'); if (_hc) _hc.textContent = '$' + HC_HOURLY.toFixed(2);
+
+
+  // ---- district title + sub ----
+  document.getElementById('districtTitle').textContent = DATA.dist;
+  const _dsub = document.getElementById('districtSub');
+  if (_dsub) _dsub.textContent = DATA.scope === 'state'
+    ? 'Statewide constituency — CBES service area shown.'
+    : DATA.scope === 'city'
+    ? 'Citywide constituency — CBES service area shown.'
+    : 'CBES consumers live across this district.';
+  document.getElementById('mapLegend').textContent = DATA.dist;
+
+  // ---- 3D map (deck.gl) ----
+  const conditionColors = {
+    'total':                              [125,211,252],   // cyan — overall density
+    "Alzheimer's & Related Dementias":    [251,146,60],
+    'Diabetes':                            [34,211,238],
+    'Heart & Circulation':                 [239,68,68],
+    'Mental Health':                       [52,211,153],
+    'Obstructive Lung':                    [249,115,22],
+    'Social Isolation':                    [167,139,250],
+    'justice':                             [251,146,60],
+  };
+  const conditionLabels = {
+    'total':                              'All consumers',
+    "Alzheimer's & Related Dementias":    "Alzheimer's & Dementia",
+    'Diabetes':                            'Diabetes',
+    'Heart & Circulation':                 'Heart',
+    'Mental Health':                       'Mental Health',
+    'Obstructive Lung':                    'Lung',
+    'Social Isolation':                    'Social Isolation',
+    'justice':                             'Justice-Impacted',
+  };
+  let activeMetric = 'total';
+  let deckMap = null;
+
+  function bbox(geojson){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    function visit(c){
+      if (typeof c[0] === 'number'){ if(c[0]<minX)minX=c[0]; if(c[0]>maxX)maxX=c[0]; if(c[1]<minY)minY=c[1]; if(c[1]>maxY)maxY=c[1]; }
+      else c.forEach(visit);
+    }
+    if (geojson) visit(geojson.coordinates);
+    return [minX,minY,maxX,maxY];
+  }
+
+  function tileURL(){
+    return root.getAttribute('data-theme') === 'light'
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  }
+
+  function valFor(d, m){
+    if (m === 'total')   return d.total;
+    if (m === 'justice') return d.j || 0;
+    return d.c[m] || 0;
+  }
+
+  // Tiny deterministic offset per (metric, bin) so columns subtly shift between
+  // filters — but only when the shifted point stays INSIDE the district polygon.
+  const METRIC_OFFSET_DEG = 0.00022;
+  function strHash(s){
+    let h = 2166136261;
+    for (let i=0; i<s.length; i++){ h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return h;
+  }
+  // ---- point-in-polygon (works for Polygon + MultiPolygon GeoJSON) ----
+  function pointInRing(lon, lat, ring){
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      const intersect = ((yi > lat) !== (yj > lat))
+                     && (lon < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+  function pointInGeom(lon, lat, geom){
+    if (!geom) return true;
+    if (geom.type === 'Polygon'){
+      const rings = geom.coordinates;
+      if (!pointInRing(lon, lat, rings[0])) return false;
+      for (let h = 1; h < rings.length; h++) if (pointInRing(lon, lat, rings[h])) return false;
+      return true;
+    }
+    if (geom.type === 'MultiPolygon'){
+      for (const poly of geom.coordinates){
+        if (!pointInRing(lon, lat, poly[0])) continue;
+        let hole = false;
+        for (let h = 1; h < poly.length; h++) if (pointInRing(lon, lat, poly[h])){hole = true; break;}
+        if (!hole) return true;
+      }
+      return false;
+    }
+    return true;
+  }
+  const _districtGeom = DATA.geometry;
+  function metricOffset(d, m){
+    if (m === 'total') return [0, 0];
+    const h = strHash(m + ':' + d.lat.toFixed(4) + ':' + d.lon.toFixed(4));
+    const fx = ((h        & 0xFFFF) / 65535) * 2 - 1;
+    const fy = (((h>>>16) & 0xFFFF) / 65535) * 2 - 1;
+    const ox = fx * METRIC_OFFSET_DEG, oy = fy * METRIC_OFFSET_DEG;
+    // verify offset point still falls inside the district polygon — if not, snap back
+    if (_districtGeom && !pointInGeom(d.lon + ox, d.lat + oy, _districtGeom)){
+      return [0, 0];
+    }
+    return [ox, oy];
+  }
+
+  function buildLayers(){
+    const stroke = getComputedStyle(root).getPropertyValue('--district-stroke').trim() || '#7dd3fc';
+    const fillCss = getComputedStyle(root).getPropertyValue('--district-fill').trim() || 'rgba(125,211,252,0.18)';
+    const isLight = root.getAttribute('data-theme') === 'light';
+
+    // dynamic elevation scaling: tallest hex ~ 1500m
+    const maxV = Math.max(1, ...(DATA.hex_bins||[]).map(b => valFor(b, activeMetric)));
+    const elevationScale = 1500 / maxV;
+
+    const color = conditionColors[activeMetric] || [125,211,252];
+
+    const layers = [
+      // tile basemap (proper raster tiles via deck.gl TileLayer)
+      new deck.TileLayer({
+        id: 'tiles',
+        data: tileURL().replace(/\{s\}/g, 'a').replace(/\{r\}/g, ''),
+        minZoom: 0, maxZoom: 19, tileSize: 256,
+        renderSubLayers: props => {
+          const {bbox: {west, south, east, north}} = props.tile;
+          return new deck.BitmapLayer(props, {
+            data: null,
+            image: props.data,
+            bounds: [west, south, east, north],
+          });
+        },
+      }),
+      // district polygon outline
+      DATA.geometry ? new deck.GeoJsonLayer({
+        id: 'district',
+        data: { type:'Feature', geometry: DATA.geometry },
+        stroked: true,
+        filled: true,
+        getFillColor: [...color, isLight ? 14 : 22],
+        getLineColor: [...color, 220],
+        lineWidthMinPixels: 2,
+        getLineWidth: 3,
+      }) : null,
+      // 3D hex columns
+      new deck.ColumnLayer({
+        id: 'hex',
+        data: DATA.hex_bins || [],
+        diskResolution: 6,         // hexagonal
+        radius: 80,                // meters
+        extruded: true,
+        elevationScale: elevationScale,
+        getPosition: d => {
+          const o = metricOffset(d, activeMetric);
+          return [d.lon + o[0], d.lat + o[1]];
+        },
+        getElevation: d => valFor(d, activeMetric),
+        getFillColor: d => {
+          const v = valFor(d, activeMetric);
+          const intensity = Math.min(1, v / maxV);
+          return [...color, Math.round(40 + intensity * 200)];
+        },
+        getLineColor: [255,255,255, isLight ? 60 : 30],
+        material: {ambient: 0.55, diffuse: 0.6, shininess: 32, specularColor: [255,255,255]},
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [...color, 255],
+        updateTriggers: {
+          getPosition: activeMetric,
+          getElevation: activeMetric,
+          getFillColor: activeMetric,
+        },
+        transitions: {
+          getPosition:  {duration: 800, easing: t => 1 - Math.pow(1-t, 3)},
+          getElevation: {duration: 800, easing: t => 1 - Math.pow(1-t, 3)},
+          getFillColor: {duration: 600},
+        },
+      }),
+    ].filter(Boolean);
+    return layers;
+  }
+
+  let mapCenter = {lon: -71.06, lat: 42.36, zoom: 11};
+  let curViewState = null;
+
+  function pushViewState(){
+    if (deckMap) deckMap.setProps({ viewState: curViewState });
+  }
+
+  function initMap(){
+    const geom = DATA.geometry;
+    if (geom){
+      const [w,s,e,n] = bbox(geom);
+      mapCenter.lon = (w+e)/2;
+      mapCenter.lat = (s+n)/2;
+      const span = Math.max(e-w, n-s);
+      mapCenter.zoom = Math.max(11.5, Math.min(15, 13 - Math.log2(span / 0.05)));
+    }
+    curViewState = {
+      longitude: mapCenter.lon, latitude: mapCenter.lat,
+      zoom: Math.max(10, mapCenter.zoom - 2.2),
+      pitch: 0, bearing: 0,
+    };
+    deckMap = new deck.DeckGL({
+      container: 'map',
+      viewState: curViewState,
+      controller: { dragRotate: true, scrollZoom: {smooth: true, speed: 0.005}, touchRotate: true },
+      layers: buildLayers(),
+      onViewStateChange: ({viewState}) => {
+        const {transitionDuration, transitionInterpolator, transitionEasing, ...clean} = viewState;
+        curViewState = clean;
+        pushViewState();
+      },
+      getTooltip: ({object}) => {
+        if (!object || !object.lat) return null;
+        const v = valFor(object, activeMetric);
+        const total = object.total;
+        if (activeMetric === 'total'){
+          return {text: total + ' consumers'};
+        }
+        const pct = total ? Math.round(v / total * 100) : 0;
+        return {text: v + ' / ' + total + ' (' + pct + '%) — ' + conditionLabels[activeMetric]};
+      },
+    });
+  }
+
+  function setViewState(next, opts){
+    opts = opts || {};
+    curViewState = Object.assign({}, curViewState, next);
+    const vs = Object.assign({}, curViewState, {
+      transitionDuration: opts.duration || 600,
+    });
+    if (opts.fly) vs.transitionInterpolator = new deck.FlyToInterpolator({speed: 1.4, curve: 1.4});
+    else          vs.transitionInterpolator = new deck.LinearInterpolator(['target','zoom','bearing','pitch','longitude','latitude']);
+    deckMap.setProps({ viewState: vs });
+  }
+
+  let hasFlownIn = false;
+  function flyIn(){
+    if (!deckMap || hasFlownIn) return;
+    hasFlownIn = true;
+    setViewState({
+      longitude: mapCenter.lon, latitude: mapCenter.lat,
+      zoom: mapCenter.zoom, pitch: 52, bearing: -22,
+    }, {duration: 2400, fly: true});
+  }
+
+  // controls — handle pointerdown so deck.gl's controller doesn't swallow the gesture on touch
+  function runMapAction(act){
+    if (act === 'zoomIn')    setViewState({zoom: Math.min(18, (curViewState.zoom||11) + 0.8)});
+    if (act === 'zoomOut')   setViewState({zoom: Math.max(8,  (curViewState.zoom||11) - 0.8)});
+    if (act === 'rotateCW')  setViewState({bearing: (curViewState.bearing||0) - 30});
+    if (act === 'rotateCCW') setViewState({bearing: (curViewState.bearing||0) + 30});
+    if (act === 'reset')     setViewState({
+      longitude: mapCenter.lon, latitude: mapCenter.lat,
+      zoom: mapCenter.zoom, pitch: 52, bearing: -22,
+    }, {duration: 900, fly: true});
+  }
+  document.querySelectorAll('#mapControls .map-ctl').forEach(btn => {
+    const handler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      runMapAction(btn.getAttribute('data-act'));
+    };
+    btn.addEventListener('click',       handler);
+    btn.addEventListener('pointerdown', e => e.stopPropagation()); // keep deck from grabbing it
+    btn.addEventListener('touchstart',  e => e.stopPropagation(), {passive:true});
+  });
+
+  function metricStats(){
+    const totalConsumers = DATA.total || 0;
+    if (activeMetric === 'total'){
+      return {
+        kind: 'count',
+        count: totalConsumers,
+        label: 'consumers in this district',
+      };
+    }
+    if (activeMetric === 'justice'){
+      const n = (DATA.justice || {}).total || 0;
+      return {
+        kind: 'pct',
+        pct: totalConsumers ? Math.round(n / totalConsumers * 100) : 0,
+        label: 'Justice-impacted',
+        sub: n.toLocaleString() + ' of ' + totalConsumers.toLocaleString() + ' consumers',
+      };
+    }
+    // health condition: use assessed denominator so map % matches Health bars
+    const item = ((DATA.conditions || {}).items || {})[activeMetric] || {n:0, pct:0};
+    const assessed = (DATA.conditions || {})._assessed || 0;
+    return {
+      kind: 'pct',
+      pct: Math.round(item.pct),
+      label: conditionLabels[activeMetric],
+      sub: item.n.toLocaleString() + ' of ' + assessed.toLocaleString() + ' assessed',
+    };
+  }
+  function renderMapStat(){
+    const el = document.getElementById('mapStat');
+    if (!el) return;
+    const s = metricStats();
+    const color = (conditionColors[activeMetric] || [125,211,252]).join(',');
+    if (s.kind === 'count'){
+      el.innerHTML =
+        '<div class="map-stat-num" style="color:rgb(' + color + ')">' + s.count.toLocaleString() + '</div>' +
+        '<div class="map-stat-lbl">' + s.label + '</div>';
+    } else {
+      el.innerHTML =
+        '<div class="map-stat-num" style="color:rgb(' + color + ')">' + s.pct + '%</div>' +
+        '<div class="map-stat-lbl">' + s.label + '</div>';
+    }
+  }
+
+  function refreshLayers(){
+    if (!deckMap) return;
+    deckMap.setProps({ layers: buildLayers() });
+  }
+  // hook into theme toggle so basemap re-fetches with new style
+  const _origToggle = document.getElementById('themeBtn').onclick;
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    setTimeout(refreshLayers, 50);
+  });
+
+  // build filter UI
+  function renderFilter(){
+    const el = document.getElementById('mapFilter');
+    if (!el) return;
+    const metrics = ['total'].concat((DATA.condition_keys||[]).filter(k => (DATA.conditions?.items||{})[k]));
+    el.innerHTML = metrics.map(m => {
+      const cls = m === activeMetric ? 'active' : '';
+      const rgb = (conditionColors[m]||[125,211,252]).join(',');
+      const lbl = conditionLabels[m] || m;
+      return '<button class="map-pill ' + cls + '" data-m="' + m + '">'
+           + '<span class="dot" style="background:rgb(' + rgb + ')"></span>'
+           + lbl + '</button>';
+    }).join('');
+    el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      activeMetric = b.getAttribute('data-m');
+      el.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      refreshLayers();
+      renderMapStat();
+    }));
+  }
+  renderFilter();
+  initMap();
+  renderMapStat();
+
+  // ---- popup mode (open the 3D map filtered to a specific condition) ----
+  const mapStage = document.getElementById('mapStage');
+  const mapBackdrop = document.getElementById('mapBackdrop');
+  const mapStageHome = mapStage.parentNode;          // origin: District slide-inner
+  const mapHomeAnchor = document.createComment('map-stage anchor');
+  mapStageHome.insertBefore(mapHomeAnchor, mapStage);
+  function setActiveMetric(m){
+    if (!m) return;
+    activeMetric = m;
+    document.querySelectorAll('#mapFilter .map-pill').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-m') === m);
+    });
+    refreshLayers();
+    renderMapStat();
+  }
+  function openMapPopup(metric){
+    // detach from the (display:none) District slide and pin to body so it can render
+    if (mapStage.parentNode !== document.body){
+      document.body.appendChild(mapStage);
+    }
+    mapStage.classList.add('popup-mode');
+    mapBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setActiveMetric(metric);
+    // re-trigger flyIn so popup feels cinematic
+    hasFlownIn = false;
+    setTimeout(() => { if (deckMap) deckMap.redraw(true); flyIn(); }, 80);
+  }
+  function closeMapPopup(){
+    mapStage.classList.remove('popup-mode');
+    mapBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    // move back to District slide
+    if (mapHomeAnchor.parentNode){
+      mapHomeAnchor.parentNode.insertBefore(mapStage, mapHomeAnchor);
+    }
+    setTimeout(() => deckMap && deckMap.redraw(true), 80);
+  }
+  document.getElementById('mapExpand').addEventListener('click', () => openMapPopup());
+  document.getElementById('mapClose').addEventListener('click', closeMapPopup);
+  mapBackdrop.addEventListener('click', closeMapPopup);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && mapStage.classList.contains('popup-mode')) closeMapPopup();
+  });
+
+  // ---- count-up ----
+  function fmt(n){ return n >= 10000 ? n.toLocaleString() : n.toLocaleString(); }
+  function countUp(el, target){
+    const dur = 1600; const start = performance.now();
+    const isFloat = !Number.isInteger(target);
+    function tick(now){
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = target * eased;
+      el.textContent = isFloat
+        ? v.toLocaleString('en-US', {minimumFractionDigits:1, maximumFractionDigits:1})
+        : fmt(Math.round(v));
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---- charts ----
+  const chartGrid = document.getElementById('chartsGrid');
+  const palette = {
+    age:        ['#f59e0b','#22d3ee','#34d399','#6366f1','#94a3b8'],
+    gender:     ['#f472b6','#7dd3fc','#a78bfa'],
+    masshealth: ['#a78bfa','#94a3b8'],
+    ethnicity:  ['#a78bfa','#ef4444','#06b6d4','#10b981','#f59e0b','#fb923c','#94a3b8'],
+    income:     ['#fb923c','#34d399'],
+  };
+  const ageOrder = ['Under 65','65–74','75–84','85+','Unknown'];
+
+  function bucketOther(items, minPct, maxItems){
+    items = items.slice().sort((a,b) => b.value - a.value);
+    const keep = [];
+    let otherN = 0, otherPct = 0;
+    const isOtherLbl = (lbl) => /^other$/i.test(String(lbl).trim());
+    for (const it of items){
+      if (!isOtherLbl(it.label) && keep.length < maxItems && it.pct >= minPct) keep.push(it);
+      else { otherN += it.value; otherPct += it.pct; }
+    }
+    if (otherN > 0) keep.push({label:'Other', value:otherN, pct:otherPct});
+    return keep;
+  }
+
+  // Map of full → respectful display label for the donut center subtitle.
+  // Long racial / ethnic / clinical labels are kept intact; the SVG <text> element
+  // shrinks the font when needed so we never reduce a category to a single word.
+  function shortLabel(lbl){
+    if (!lbl) return '';
+    const map = {
+      'Black/African American': 'Black/African American',
+      'Non-Minority (White, non-Hispanic)': 'White, non-Hispanic',
+      "Alzheimer's & Related Dementias": "Alzheimer's & Dementia",
+      'Heart & Circulation': 'Heart & Circulation',
+      'Obstructive Lung': 'Lung',
+      'Social Isolation': 'Social Isolation',
+      'Mental Health': 'Mental Health',
+      'No MassHealth': 'No MassHealth',
+    };
+    return map[lbl] || lbl;
+  }
+  // Auto-shrink the donut subtitle so long labels (like "Black/African American") fit cleanly
+  function donutSubFont(lbl){
+    const n = String(lbl || '').length;
+    if (n <= 6)  return 9;
+    if (n <= 10) return 8.5;
+    if (n <= 14) return 7.5;
+    if (n <= 18) return 6.5;
+    return 5.8;
+  }
+
+  function renderDonut(card, title, key, dataObj, order, opts){
+    opts = opts || {};
+    let items = order
+      ? order.filter(k => dataObj[k]).map(k => ({label:k, value:dataObj[k].n, pct:dataObj[k].pct}))
+      : Object.entries(dataObj).map(([k,v]) => ({label:k, value:v.n, pct:v.pct}));
+
+    // headline override: e.g. age shows "% over 65 of full population"
+    let headlinePct, headlineL;
+
+    if (opts.over65){
+      // Drop "Under 65" and "Unknown" entirely; renormalize within 65+
+      const fullTotal = items.reduce((s,i) => s + i.value, 0);
+      const under = items.find(i => /under\s*65|unknown/i.test(i.label));
+      const unknown = items.find(i => /^unknown$/i.test(i.label));
+      items = items.filter(i => !/under\s*65|unknown/i.test(i.label));
+      const sub = items.reduce((s,i) => s + i.value, 0);
+      items = items.map(i => ({label:i.label, value:i.value, pct: sub ? (i.value/sub*100) : 0}));
+      headlinePct = fullTotal ? Math.round(sub / fullTotal * 100) : 0;
+      headlineL = 'Over 65';
+    } else {
+      headlinePct = items[0]?.pct || 0;
+      headlineL = items[0]?.label || '';
+    }
+
+    items = bucketOther(items, opts.minPct || 0.5, opts.maxItems || 7);
+
+    const total = items.reduce((s,it) => s + it.value, 0);
+    const colors = palette[key] || palette.ethnicity;
+    const C = 60;
+    const CIRC = 2 * Math.PI * C;
+    const cx = 70, cy = 70;
+    let acc = 0;
+    const arcs = items.map((it, i) => {
+      const frac = total ? it.value / total : 0;
+      const dash = CIRC * frac;
+      const offset = -CIRC * acc;
+      acc += frac;
+      return '<circle cx="'+cx+'" cy="'+cy+'" r="'+C+'" fill="none" stroke="'+colors[i % colors.length]+
+             '" stroke-width="20" stroke-dashoffset="'+offset+'" transform="rotate(-90 '+cx+' '+cy+')" stroke-linecap="butt" data-target-dash="'+dash+' '+CIRC+'" stroke-dasharray="0 '+CIRC+'"/>';
+    }).join('');
+
+    const centerPct = typeof headlinePct === 'number' ? Math.round(headlinePct) : headlinePct;
+    const html =
+      '<div class="chart-title">'+title+'</div>' +
+      '<div class="donut-wrap">' +
+        '<svg class="donut-svg" viewBox="0 0 140 140">'+arcs+
+          '<text class="donut-center" x="70" y="70" text-anchor="middle">'+centerPct+'%</text>' +
+          '<text class="donut-center-sub" x="70" y="86" text-anchor="middle" style="font-size:'+donutSubFont(shortLabel(headlineL))+'px">'+shortLabel(headlineL).toUpperCase()+'</text>' +
+        '</svg>' +
+        '<div class="legend">' + items.map((it, i) =>
+          '<div class="legend-row" data-tip="'+it.label.replace(/"/g,'&quot;')+' — '+fmt(it.value)+' · '+it.pct.toFixed(0)+'%">' +
+            '<span class="legend-dot" style="background:'+colors[i % colors.length]+'"></span>' +
+            '<span class="name">'+it.label+'</span>' +
+            '<span class="val">'+fmt(it.value)+' · '+it.pct.toFixed(0)+'%</span>' +
+          '</div>'
+        ).join('') + '</div>' +
+      '</div>';
+    card.innerHTML = html;
+  }
+
+  function renderBars(card, title, key, dataObj, opts){
+    opts = opts || {};
+    let items = Object.entries(dataObj).map(([k,v]) => ({label:k, value:v.n, pct:v.pct}));
+    items = bucketOther(items, opts.minPct || 1, opts.maxItems || 6);
+    const colors = palette[key] || palette.ethnicity;
+    const max = Math.max(...items.map(i => i.pct), 1);
+    const html =
+      '<div class="chart-title">'+title+'</div>' +
+      '<div class="bar-list">' + items.map((it, i) =>
+        '<div class="bar-row"><div class="meta"><span class="lbl">'+it.label+'</span><span class="val">'+fmt(it.value)+' · '+it.pct.toFixed(0)+'%</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" data-target="'+(it.pct/max*100).toFixed(2)+'" style="background:'+colors[i % colors.length]+'"></div></div></div>'
+      ).join('') + '</div>';
+    card.innerHTML = html;
+  }
+
+  function chartCardEl(){ const d = document.createElement('div'); d.className='chart-card'; return d; }
+
+  function buildCharts(){
+    const order = [
+      ['Age',             'age',        DATA.age,        ageOrder, 'donut', {over65:true}],
+      ['Gender Identity', 'gender',     DATA.gender,     null,     'donut', {}],
+      ['Ethnicity',  'ethnicity',  DATA.ethnicity,  null,     'donut', {minPct:2, maxItems:5}],
+      ['MassHealth', 'masshealth', DATA.masshealth, null,     'donut', {}],
+    ];
+    let any = false;
+    order.forEach(([title, key, data, ord, type, opts]) => {
+      if (!data || !Object.keys(data).length) return;
+      any = true;
+      const c = chartCardEl();
+      chartGrid.appendChild(c);
+      if (type === 'donut') renderDonut(c, title, key, data, ord, opts);
+      else renderBars(c, title, key, data, opts);
+    });
+    if (!any) chartGrid.innerHTML = '<div class="empty">No demographic data for this district yet.</div>';
+  }
+
+  function buildReports(){
+    const block = document.getElementById('reportsBlock');
+    if (!DATA.r_total){
+      block.innerHTML = '<div class="empty">No elder-abuse reports recorded for this district in our current dataset.</div>';
+      return;
+    }
+    const items = Object.entries(DATA.r_allegation || {}).map(([k,v]) => ({label:k, value:v.n, pct:v.pct}));
+    const colors = ['#ef4444','#f97316','#fbbf24','#a78bfa','#60a5fa','#34d399','#f472b6','#fb923c'];
+    const max = Math.max(...items.map(i => i.pct), 1);
+    block.innerHTML =
+      '<div class="reports-summary">' +
+        '<div class="reports-bigno" data-count="'+DATA.r_total+'">0</div>' +
+        '<p>reports filed in this district.</p>' +
+      '</div>' +
+      '<div class="bar-list">' + items.map((it, i) =>
+        '<div class="bar-row"><div class="meta"><span class="lbl">'+it.label+'</span><span class="val">'+fmt(it.value)+' · '+it.pct.toFixed(0)+'%</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" data-target="'+(it.pct/max*100).toFixed(2)+'" style="background:'+colors[i % colors.length]+'"></div></div></div>'
+      ).join('') + '</div>';
+  }
+
+  function buildSavings(){
+    const card = document.getElementById('savingsCard');
+    const hours = DATA.total_care_hours || 0;
+    if (!hours){
+      card.innerHTML = '<div class="empty">No care-hour data for this district yet.</div>';
+      return;
+    }
+    const nhCost = hours * NH_HOURLY;
+    const hcCost = hours * HC_HOURLY;
+    const savings = nhCost - hcCost;
+    const fmtUSD = n => '$' + Math.round(n).toLocaleString();
+    card.innerHTML =
+      '<div class="savings-headline"><span class="lbl">CBES saves</span><span class="amt">'+fmtUSD(savings)+'</span></div>' +
+      '<div class="savings-sub">'+fmt(hours)+' CARE HOURS · 2025 YTD</div>' +
+      '<div class="savings-bars">' +
+        '<div class="savings-bar nh"><div class="lbl">Nursing Home<span class="small">$'+NH_HOURLY+'/hr</span></div><div class="track"><div class="fill" data-target="100" data-text="'+fmtUSD(nhCost)+'"></div></div></div>' +
+        '<div class="savings-bar hc"><div class="lbl">CBES Home Care<span class="small">$'+HC_HOURLY+'/hr</span></div><div class="track"><div class="fill" data-target="'+((HC_HOURLY/NH_HOURLY)*100).toFixed(2)+'" data-text="'+fmtUSD(hcCost)+'"></div></div></div>' +
+      '</div>';
+  }
+
+  function buildMedical(){
+    const block = document.getElementById('medicalBlock');
+    const c = DATA.conditions || {_assessed: 0, items: {}};
+    if (!c._assessed){
+      block.innerHTML = '<div class="empty">No clinical assessments recorded for this district yet.</div>';
+      return;
+    }
+    const items = Object.entries(c.items).map(([k,v]) => ({label:k, value:v.n, pct:v.pct}));
+    const colors = ['#a78bfa','#ef4444','#06b6d4','#10b981','#f59e0b','#fb923c','#94a3b8'];
+    const max = Math.max(...items.map(i => i.pct), 1);
+    block.innerHTML =
+      '<div class="reports-summary">' +
+        '<div class="reports-bigno" style="color:#a78bfa" data-count="'+c._assessed+'">0</div>' +
+        '<p>consumers assessed in this district.</p>' +
+      '</div>' +
+      '<div class="bar-list">' + items.map((it, i) =>
+        '<div class="bar-row"><div class="meta"><span class="lbl">'+it.label+'</span><span class="val">'+fmt(it.value)+' · '+it.pct.toFixed(0)+'%</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" data-target="'+(it.pct/max*100).toFixed(2)+'" style="background:'+colors[i % colors.length]+'"></div></div></div>'
+      ).join('') + '</div>';
+    block.querySelectorAll('.bar-row[data-condition]').forEach(row => {
+      row.addEventListener('click', () => {
+        const m = row.getAttribute('data-condition');
+        if (window.__openMapPopup) window.__openMapPopup(m);
+      });
+    });
+  }
+
+  function buildJustice(){
+    const block = document.getElementById('justiceBlock');
+    const j = DATA.justice || {total:0, categories:{}};
+    if (!j.total){
+      block.innerHTML = '<div class="empty">No justice-impacted consumers identified for this district in our current dataset.</div>';
+      return;
+    }
+    let items = Object.entries(j.categories).map(([k,v]) => ({label:k, value:v.n, pct:v.pct}));
+    items = bucketOther(items, 3, 5);  // bucket anything below 3% into Other
+    const colors = ['#fb923c','#ef4444','#a78bfa','#f97316','#fbbf24','#60a5fa','#34d399','#94a3b8'];
+
+    const C = 90;
+    const CIRC = 2 * Math.PI * C;
+    const cx = 110, cy = 110;
+    let acc = 0;
+    const arcs = items.map((it, i) => {
+      const frac = it.pct / 100;
+      const dash = CIRC * frac;
+      const offset = -CIRC * acc;
+      acc += frac;
+      return '<circle cx="'+cx+'" cy="'+cy+'" r="'+C+'" fill="none" stroke="'+colors[i % colors.length]+
+             '" stroke-width="28" stroke-dashoffset="'+offset+'" transform="rotate(-90 '+cx+' '+cy+')" stroke-linecap="butt" data-target-dash="'+dash+' '+CIRC+'" stroke-dasharray="0 '+CIRC+'"/>';
+    }).join('');
+
+    block.innerHTML =
+      '<div class="justice-layout">' +
+        '<div class="justice-headline">' +
+          '<div class="reports-bigno" style="color:#fb923c" data-count="'+j.total+'">0</div>' +
+          '<p>justice-impacted older adults in this district.</p>' +
+        '</div>' +
+        '<div class="justice-donut">' +
+          '<svg class="donut-lg" viewBox="0 0 220 220">'+arcs+
+            '<text class="donut-center-lg" x="110" y="108" text-anchor="middle">'+Math.round((items[0]||{pct:0}).pct)+'%</text>' +
+            '<text class="donut-center-sub-lg" x="110" y="130" text-anchor="middle">'+String((items[0]||{label:''}).label).toUpperCase()+'</text>' +
+          '</svg>' +
+          '<div class="legend justice-legend">' + items.map((it, i) =>
+            '<div class="legend-row"><span class="legend-dot" style="background:'+colors[i % colors.length]+'"></span>' +
+            '<span class="name">'+it.label+'</span><span class="val">'+fmt(it.value)+' · '+it.pct.toFixed(0)+'%</span></div>'
+          ).join('') + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function buildBudgets(){
+    const block = document.getElementById('budgetsBlock');
+    if (!block) return;
+    const t = DATA.ecop_trend || {months:[], active:[]};
+    const s = DATA.ecop_summary || {current:0, peak:0, drop_pct:0, peak_month:'', current_month:''};
+    if (!t.active || !t.active.length){
+      block.innerHTML = '<div class="empty">ECOP enrollment data unavailable.</div>';
+      return;
+    }
+    const W = 1000, H = 360, pad = {l:64, r:24, t:30, b:46};
+    const innerW = W - pad.l - pad.r, innerH = H - pad.t - pad.b;
+    const vals = t.active;
+    const maxV = Math.max(...vals);
+    const minV = Math.min(...vals);
+    const span = Math.max(1, maxV - minV);
+    const x = i => pad.l + (i / Math.max(1, vals.length - 1)) * innerW;
+    const y = v => pad.t + innerH - ((v - minV) / span) * innerH;
+    const line = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    const area = line + ' L ' + x(vals.length - 1).toFixed(1) + ' ' + (pad.t + innerH) +
+                 ' L ' + x(0).toFixed(1) + ' ' + (pad.t + innerH) + ' Z';
+    // gridlines (4)
+    const grids = [];
+    for (let g = 0; g <= 4; g++){
+      const gy = pad.t + (g/4) * innerH;
+      grids.push('<line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+gy+'" y2="'+gy+'" stroke="currentColor" stroke-opacity="0.08"/>');
+      const gv = Math.round(maxV - (g/4) * span);
+      grids.push('<text x="'+(pad.l-10)+'" y="'+(gy+4)+'" text-anchor="end" font-size="11" fill="currentColor" opacity="0.55" font-family="DM Mono,monospace">'+gv.toLocaleString()+'</text>');
+    }
+    // x-axis labels — first, ~quarterly, last
+    const xLabels = [];
+    const stride = Math.max(1, Math.round(t.months.length / 6));
+    for (let i = 0; i < t.months.length; i += stride){
+      xLabels.push('<text x="'+x(i)+'" y="'+(H - pad.b + 22)+'" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.55">'+t.months[i]+'</text>');
+    }
+    if ((t.months.length - 1) % stride !== 0){
+      xLabels.push('<text x="'+x(vals.length-1)+'" y="'+(H - pad.b + 22)+'" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.55">'+t.months[t.months.length-1]+'</text>');
+    }
+    // peak + current markers
+    const peakIdx = vals.indexOf(s.peak);
+    const curIdx = vals.length - 1;
+    const markers = '' +
+      '<circle cx="'+x(peakIdx)+'" cy="'+y(s.peak)+'" r="5" fill="#fb923c"/>' +
+      '<circle cx="'+x(curIdx)+'"  cy="'+y(s.current)+'" r="5" fill="#ef4444"/>';
+
+    // unitless trend chart — strip y-axis numeric labels, keep only the line + gridlines
+    const gridsClean = [];
+    for (let g = 0; g <= 4; g++){
+      const gy = pad.t + (g/4) * innerH;
+      gridsClean.push('<line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+gy+'" y2="'+gy+'" stroke="currentColor" stroke-opacity="0.08"/>');
+    }
+    block.innerHTML =
+      '<div class="budgets-headline">' +
+        '<span class="reports-bigno" style="color:#ef4444"><span data-count="'+s.drop_pct+'">0</span>%</span>' +
+        '<span class="budgets-bigno-suffix">drop in active enrollment</span>' +
+      '</div>' +
+      '<div class="budgets-grid">' +
+        '<div class="budgets-summary">' +
+          '<p class="budgets-about"><strong>The Enhanced Community Options Program (ECOP)</strong> is a Massachusetts state-funded program that helps frail elderly residents (aged 60+) with high care needs remain in their homes, preventing or delaying nursing home placement. It offers intensive, non-medical in-home services including personal care, adult day care, and chore services.</p>' +
+        '</div>' +
+        '<div class="budgets-chart-wrap">' +
+          '<svg class="budgets-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">' +
+            '<defs>' +
+              '<linearGradient id="budgetsGrad" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>' +
+                '<stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>' +
+              '</linearGradient>' +
+            '</defs>' +
+            gridsClean.join('') +
+            '<path d="'+area+'" fill="url(#budgetsGrad)"/>' +
+            '<path d="'+line+'" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+            xLabels.join('') +
+          '</svg>' +
+          '<div class="budgets-caption">ECOP / Non-Waiver enrollment trend</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="budgets-banner">' +
+        '<div class="budgets-banner-tag">As of July 1, 2025</div>' +
+        '<div class="budgets-banner-text">Massachusetts now uses <strong>managed intake</strong> across all Aging Services Access Points (ASAPs) due to budget constraints. Only the most urgent cases receive immediate services. Others are placed on a waitlist.</div>' +
+      '</div>';
+  }
+
+  buildCharts();
+  buildReports();
+  buildMedical();
+  buildJustice();
+  buildSavings();
+  buildBudgets();
+
+  // ---- cursor-spotlight on cards ----
+  function attachSpotlight(){
+    document.querySelectorAll('.chart-card, .savings-card, .stat-card').forEach(el => {
+      if (el.__spot) return;
+      el.__spot = true;
+      el.addEventListener('mousemove', e => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', ((e.clientX - r.left) / r.width  * 100) + '%');
+        el.style.setProperty('--my', ((e.clientY - r.top)  / r.height * 100) + '%');
+      });
+    });
+  }
+  attachSpotlight();
+
+  // ---- carousel (fade between slides; one visible at a time) ----
+  const slides = ['impact','savings','budgets','district','people','reports','medical','justice'];
+  const tabs  = document.querySelectorAll('.carousel-tabs button');
+  const prevBtn = document.querySelector('.carousel-arrow.floating.prev');
+  const nextBtn = document.querySelector('.carousel-arrow.floating.next');
+  const counter = document.getElementById('carCur');
+  document.getElementById('carTotal').textContent = slides.length;
+  let cur = 0;
+
+  function triggerSlideAnim(id){
+    const slide = document.getElementById(id);
+    if (!slide) return;
+
+    // Reset everything so the animation replays each time the slide opens
+    slide.querySelectorAll('[data-count]').forEach(el => {
+      el.classList.remove('done');
+      el.textContent = '0';
+    });
+    slide.querySelectorAll('.bar-fill[data-target]').forEach(b => {
+      b.classList.remove('done');
+      b.style.width = '0%';
+    });
+    slide.querySelectorAll('circle[data-target-dash]').forEach(c => {
+      c.classList.remove('done');
+      const totalCirc = c.getAttribute('data-target-dash').split(' ')[1];
+      c.setAttribute('stroke-dasharray', '0 ' + totalCirc);
+    });
+    slide.querySelectorAll('.savings-bar .fill[data-target]').forEach(f => {
+      f.classList.remove('done');
+      f.style.width = '0%';
+      f.textContent = '';
+    });
+
+    // Now play the animations
+    slide.querySelectorAll('[data-count]').forEach(el => {
+      el.classList.add('done');
+      countUp(el, parseFloat(el.getAttribute('data-count')) || 0);
+    });
+    slide.querySelectorAll('.bar-fill[data-target]').forEach((b, i) => {
+      b.classList.add('done');
+      setTimeout(() => { b.style.width = b.getAttribute('data-target') + '%'; }, i * 70 + 200);
+    });
+    slide.querySelectorAll('circle[data-target-dash]').forEach((c, i) => {
+      c.classList.add('done');
+      setTimeout(() => c.setAttribute('stroke-dasharray', c.getAttribute('data-target-dash')), i * 90 + 200);
+    });
+    slide.querySelectorAll('.savings-bar .fill[data-target]').forEach((f, i) => {
+      f.classList.add('done');
+      setTimeout(() => {
+        f.style.width = f.getAttribute('data-target') + '%';
+        f.textContent = f.getAttribute('data-text') || '';
+      }, i * 200 + 350);
+    });
+    if (id === 'district' && deckMap){
+      setTimeout(() => {
+        deckMap.redraw(true);
+        hasFlownIn = false;   // replay cinematic on every visit to District
+        flyIn();
+      }, 250);
+    }
+  }
+
+  const tabsContainer = document.querySelector('.carousel-tabs');
+  function goto(i){
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((id, idx) => {
+      const s = document.getElementById(id);
+      if (s) s.classList.toggle('active', idx === cur);
+    });
+    tabs.forEach((b, idx) => b.classList.toggle('active', idx === cur));
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === slides.length - 1;
+    counter.textContent = cur + 1;
+    history.replaceState(null, '', '#' + slides[cur]);
+    // keep active tab in view inside the horizontally-scrollable tab list
+    const activeBtn = tabs[cur];
+    if (activeBtn && tabsContainer){
+      const btnRect = activeBtn.getBoundingClientRect();
+      const conRect = tabsContainer.getBoundingClientRect();
+      if (btnRect.right > conRect.right - 24){
+        tabsContainer.scrollBy({left: btnRect.right - conRect.right + 32, behavior: 'smooth'});
+      } else if (btnRect.left < conRect.left + 4){
+        tabsContainer.scrollBy({left: btnRect.left - conRect.left - 16, behavior: 'smooth'});
+      }
+    }
+    triggerSlideAnim(slides[cur]);
+  }
+
+  tabs.forEach((b, i) => b.addEventListener('click', () => goto(i)));
+  prevBtn.addEventListener('click', () => goto(cur - 1));
+  nextBtn.addEventListener('click', () => goto(cur + 1));
+  document.addEventListener('keydown', e => {
+    if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    if (e.key === 'ArrowRight') goto(cur + 1);
+    if (e.key === 'ArrowLeft')  goto(cur - 1);
+  });
+
+  // ---- touch swipe (right side / data area) ----
+  const profileMain = document.querySelector('.profile-main');
+  let touchStartX = 0, touchStartY = 0, touchActive = false;
+  // selectors that own their own touch gestures and shouldn't trigger slide swipe
+  const NO_SWIPE = '#map, .map-wrap, .map-filter, .map-stat, canvas, .leaflet-container';
+  profileMain.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { touchActive = false; return; }
+    if (e.target.closest && e.target.closest(NO_SWIPE)) { touchActive = false; return; }
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchActive = true;
+  }, {passive:true});
+  profileMain.addEventListener('touchend', e => {
+    if (!touchActive) return;
+    touchActive = false;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    // require horizontal swipe at least 60px and dominant over vertical
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4){
+      goto(cur + (dx < 0 ? 1 : -1));
+    }
+  }, {passive:true});
+
+  // disable browser's "scroll to last position" so #impact hash doesn't jump
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  const hash = window.location.hash.slice(1);
+  const startIdx = slides.indexOf(hash);
+  goto(startIdx >= 0 ? startIdx : 0);
+  window.scrollTo(0, 0);
+  setTimeout(() => window.scrollTo(0, 0), 0);
+  setTimeout(() => window.scrollTo(0, 0), 100);
+
+  // ---- parallax (page-bg + side panel boston-bg move at different rates) ----
+  const parallaxTargets = [
+    document.querySelector('.page-bg-img'),
+    document.querySelector('.boston-bg'),
+  ].filter(Boolean);
+  let pxTarget = 0, pyTarget = 0, pxCur = 0, pyCur = 0, parallaxRaf = null;
+  function parallaxLoop(){
+    pxCur += (pxTarget - pxCur) * 0.08;
+    pyCur += (pyTarget - pyCur) * 0.08;
+    parallaxTargets.forEach(t => {
+      t.style.setProperty('--px', pxCur.toFixed(3));
+      t.style.setProperty('--py', pyCur.toFixed(3));
+    });
+    if (Math.abs(pxTarget - pxCur) > 0.001 || Math.abs(pyTarget - pyCur) > 0.001){
+      parallaxRaf = requestAnimationFrame(parallaxLoop);
+    } else {
+      parallaxRaf = null;
+    }
+  }
+  function nudge(x, y){
+    pxTarget = Math.max(-1, Math.min(1, x));
+    pyTarget = Math.max(-1, Math.min(1, y));
+    if (!parallaxRaf) parallaxRaf = requestAnimationFrame(parallaxLoop);
+  }
+  if (window.matchMedia('(pointer:fine)').matches){
+    window.addEventListener('mousemove', e => {
+      nudge(
+        (e.clientX / window.innerWidth)  * 2 - 1,
+        (e.clientY / window.innerHeight) * 2 - 1
+      );
+    }, {passive:true});
+  }
+  // tablet tilt parallax
+  window.addEventListener('deviceorientation', e => {
+    if (e.beta == null || e.gamma == null) return;
+    nudge((e.gamma||0) / 30, ((e.beta||0) - 30) / 30);
+  }, {passive:true});
+  </script>
+</body>
+</html>
